@@ -1,3 +1,4 @@
+jmp 3
 var a int32
 mov a 4
 var b int8

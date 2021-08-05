@@ -330,7 +330,8 @@ control_flow_graph build_cfg(const instruction_vec& i_vec) {
       auto arg = static_cast<unary_instruction*>(i_vec[i_index].get())->arg_1;
       cfg[i_index] = i_index + std::stoi(arg);
       if (std::stoi(arg) > 0) {
-        i_index = i_index + std::stoi(arg);
+        //i_index = i_index + std::stoi(arg);
+        i_index = i_index + 1;
       } else {
         i_index = i_index + 1;
       }
@@ -359,9 +360,9 @@ void dump_cfg_to_dot(const instruction_vec& i_vec, std::ostream& out) {
   auto cfg = build_cfg(i_vec);
   out << "digraph {\n";
   out << "\tnode[shape=record,style=filled,fillcolor=gray95]\n";
-  for (const auto& node : cfg) {
-    out << '\t' << node.first << "[label=\"";
-    i_vec[node.first]->dump(out);
+  for (int i_index = 0; i_index < i_vec.size(); ++i_index) {
+    out << '\t' << i_index << "[label=\"";
+    i_vec[i_index]->dump(out);
     out << "\"]\n";
   }
   for (const auto& node : cfg) {
@@ -380,6 +381,6 @@ int main() {
   // }
   auto cfg = build_cfg(program);
   dump_cfg_to_dot(program, std::cout);
-  // dump_raw_cfg(program, std::cout);
+  //dump_raw_cfg(program, std::cout);
   return 0;
 }
