@@ -141,6 +141,10 @@ bool isbracket(char c) {
   return c == '(' || c == ')';
 }
 
+bool isminus(char c) {
+  return c == '-';
+}
+
 std::string getNextToken(scanning_state& state) {
   if (!state.eof() && isspace(*state.current)) {
     auto end = std::find_if_not(state.current, state.end, isspace);
@@ -153,7 +157,7 @@ std::string getNextToken(scanning_state& state) {
 
     return token;
   }
-  if (!state.eof() && (isdigit(*state.current) || *state.current == '-')) {
+  if (!state.eof() && isdigit(*state.current)) {
     auto token_end = std::find_if_not(state.current, state.end, isdigit);
     std::string token = std::string(state.current, token_end);
     state.current = token_end;
@@ -162,6 +166,13 @@ std::string getNextToken(scanning_state& state) {
   }
 
   if (!state.eof() && isbracket(*state.current)) {
+    auto token_end = state.current + 1;
+    std::string token = std::string(state.current, token_end);
+    state.current = token_end;
+    return token;
+  }
+
+  if (!state.eof() && isminus(*state.current)) {
     auto token_end = state.current + 1;
     std::string token = std::string(state.current, token_end);
     state.current = token_end;
@@ -195,6 +206,10 @@ void parse_pop(instruction_vec& i_vec, scanning_state& state) {
 
 void parse_jmp(instruction_vec& i_vec, scanning_state& state) {
   auto arg = getNextToken(state);
+  if (arg == "-") {
+    arg = getNextToken(state);
+    arg = "-" + arg;
+  }
   i_vec.push_back(std::make_unique<unary_instruction>(op_jmp, arg));
 }
 
@@ -299,19 +314,26 @@ control_flow_graph build_cfg(const instruction_vec& i_vec) {
     cfg[0] = -1;
     return cfg;
   }
-  std::unique_ptr<instruction> prev_instr(i_vec.front()->clone());
-  for (int i_index = 1; i_index <= i_vec.size();) {
-    if (prev_instr->type != op_jmp && prev_instr->type != op_call && prev_instr->type != op_if &&
-        prev_instr->type != op_ret) {
+  for (int i_index = 0; i_index < i_vec.size();) {
+    if (i_vec[i_index]->type != op_jmp && i_vec[i_index]->type != op_call &&
+        i_vec[i_index]->type != op_if && i_vec[i_index]->type != op_ret) {
       // last instruction does not have continuation
       // insert -1 in this case
       if (i_index == i_vec.size()) {
-        cfg[i_index - 1] = -1;
+        cfg[i_index] = -1;
       } else {
-        cfg[i_index - 1] = i_index;
+        cfg[i_index] = i_index + 1;
       }
-      prev_instr.reset(i_vec[i_index - 1]->clone());
       ++i_index;
+      continue;
+    } else if (i_vec[i_index]->type == op_jmp) {
+      auto arg = static_cast<unary_instruction*>(i_vec[i_index].get())->arg_1;
+      cfg[i_index] = i_index + std::stoi(arg);
+      if (std::stoi(arg) > 0) {
+        i_index = i_index + std::stoi(arg);
+      } else {
+        i_index = i_index + 1;
+      }
       continue;
     }
   }
@@ -329,7 +351,6 @@ void dump_raw_cfg(const instruction_vec& i_vec, std::ostream& out) {
   for (const auto& node : cfg) {
     auto from = node.first;
     auto to = node.second;
-    if (to == -1) break;
     out << '\t' << from << "->" << to << '\n';
   }
 }
