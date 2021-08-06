@@ -66,7 +66,7 @@ struct instruction {
         out << std::string("new");
         break;
       case op_delete:
-        out << std::string("ret");
+        out << std::string("delete");
         break;
 
       default:
