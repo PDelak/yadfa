@@ -114,7 +114,7 @@ struct binary_instruction : public instruction {
 
 struct three_addr_instruction : public instruction {
   three_addr_instruction(instruction_type t, std::string a_1, std::string a_2, std::string a_3)
-      : instruction(t), arg_1(a_1), arg_2(a_2), arg_3(a_2) {}
+      : instruction(t), arg_1(a_1), arg_2(a_2), arg_3(a_3) {}
   std::string arg_1;
   std::string arg_2;
   std::string arg_3;
