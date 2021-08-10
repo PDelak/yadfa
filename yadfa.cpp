@@ -324,19 +324,12 @@ control_flow_graph build_cfg(const instruction_vec& i_vec) {
       } else {
         cfg[i_index] = i_index + 1;
       }
-      ++i_index;
-      continue;
     } else if (i_vec[i_index]->type == op_jmp) {
       auto arg = static_cast<unary_instruction*>(i_vec[i_index].get())->arg_1;
       cfg[i_index] = i_index + std::stoi(arg);
-      if (std::stoi(arg) > 0) {
-        //i_index = i_index + std::stoi(arg);
-        i_index = i_index + 1;
-      } else {
-        i_index = i_index + 1;
-      }
-      continue;
     }
+    ++i_index;
+    continue;
   }
   return cfg;
 }
