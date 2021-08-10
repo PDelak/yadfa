@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <cassert>
 #include <fstream>
 #include <iostream>
 #include <map>
@@ -290,19 +291,6 @@ instruction_vec parse(const std::string& filename) {
   return program;
 }
 
-void test_build_instruction_vec_by_hand() {
-  instruction_vec program;
-  program.push_back(std::make_unique<binary_instruction>(op_var, "a", "int32"));
-  program.push_back(std::make_unique<binary_instruction>(op_mov, "a", "4"));
-  program.push_back(std::make_unique<binary_instruction>(op_var, "b", "int8"));
-  program.push_back(std::make_unique<binary_instruction>(op_mov, "b", "2"));
-  program.push_back(std::make_unique<three_addr_instruction>(op_add, "c", "a", "b"));
-  program.push_back(std::make_unique<unary_instruction>(op_jmp, "label"));
-  for (const auto& i : program) {
-    i->dump(std::cout);
-  }
-}
-
 using control_flow_graph = std::map<int, int>;
 
 control_flow_graph build_cfg(const instruction_vec& i_vec) {
@@ -367,13 +355,35 @@ void dump_cfg_to_dot(const instruction_vec& i_vec, std::ostream& out) {
   out << "}\n\n";
 }
 
+void test_build_instruction_vec_by_hand() {
+  instruction_vec program;
+  program.push_back(std::make_unique<binary_instruction>(op_var, "a", "int32"));
+  program.push_back(std::make_unique<binary_instruction>(op_mov, "a", "4"));
+  program.push_back(std::make_unique<binary_instruction>(op_var, "b", "int8"));
+  program.push_back(std::make_unique<binary_instruction>(op_mov, "b", "2"));
+  program.push_back(std::make_unique<three_addr_instruction>(op_add, "c", "a", "b"));
+  program.push_back(std::make_unique<unary_instruction>(op_jmp, "label"));
+  for (const auto& i : program) {
+    i->dump(std::cout);
+  }
+}
+
+void test_sequential_code() {
+  instruction_vec program;
+  program.push_back(std::make_unique<binary_instruction>(op_var, "a", "int32"));
+  program.push_back(std::make_unique<binary_instruction>(op_mov, "a", "4"));
+  program.push_back(std::make_unique<binary_instruction>(op_var, "b", "int8"));
+  program.push_back(std::make_unique<binary_instruction>(op_mov, "b", "2"));
+
+  auto cfg = build_cfg(program);
+  control_flow_graph expected_cfg = {{0, 1}, {1, 2}, {2, 3}, {3, 4}};
+  assert(cfg == expected_cfg);
+}
+
 int main() {
+  test_sequential_code();
   auto program = parse("prog");
-  // for (const auto& i : program) {
-  //   i->dump(std::cout);
-  // }
   auto cfg = build_cfg(program);
   dump_cfg_to_dot(program, std::cout);
-  //dump_raw_cfg(program, std::cout);
   return 0;
 }
