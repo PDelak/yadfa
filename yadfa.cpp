@@ -379,6 +379,11 @@ void test_sequential_code() {
   assert(cfg == expected_cfg);
 }
 
+void test_branching_code()
+{
+
+}
+
 int main() {
   test_sequential_code();
   auto program = parse("prog");
