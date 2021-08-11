@@ -374,7 +374,6 @@ void test_sequential_code() {
   program.push_back(std::make_unique<binary_instruction>(op_mov, "a", "4"));
   program.push_back(std::make_unique<binary_instruction>(op_var, "b", "int8"));
   program.push_back(std::make_unique<binary_instruction>(op_mov, "b", "2"));
-
   auto cfg = build_cfg(program);
   control_flow_graph expected_cfg = {{0, 1}, {1, 2}, {2, 3}, {3, 4}};
   assert(cfg == expected_cfg);
