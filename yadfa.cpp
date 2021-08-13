@@ -4,9 +4,10 @@
 #include <iostream>
 #include <map>
 #include <memory>
+#include <sstream>
+#include <stack>
 #include <string>
 #include <vector>
-#include <sstream>
 
 enum instruction_type {
   op_var = 0,
@@ -384,6 +385,7 @@ instruction_vec parse(const std::string& filename) {
 using control_flow_graph = std::multimap<int, int>;
 
 control_flow_graph build_cfg(const instruction_vec& i_vec) {
+  std::stack<int> call_stack;
   control_flow_graph cfg;
   if (i_vec.empty()) {
     return cfg;
@@ -413,6 +415,13 @@ control_flow_graph build_cfg(const instruction_vec& i_vec) {
       auto arg = static_cast<unary_instruction*>(i_vec[i_index].get())->arg_1;
       cfg.insert({i_index, i_index + std::stoi(arg)});
       cfg.insert({i_index, i_index + 1});
+      call_stack.push(i_index);
+    } else if (i_vec[i_index]->type == op_ret) {
+      if (!call_stack.empty()) {
+        auto new_index = call_stack.top();
+        call_stack.pop();
+        cfg.insert({i_index, new_index + 1});
+      }
     }
   }
   return cfg;
