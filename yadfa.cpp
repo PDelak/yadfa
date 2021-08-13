@@ -245,6 +245,11 @@ void parse_jmp(instruction_vec& i_vec, scanning_state& state) {
 void parse_if(instruction_vec& i_vec, scanning_state& state) {
   auto arg_1 = getNextToken(state);
   auto arg_2 = getNextToken(state);
+  if (arg_2 == "-") {
+    arg_2 = getNextToken(state);
+    arg_2 = "-" + arg_2;
+  }
+
   i_vec.push_back(std::make_unique<binary_instruction>(op_if, arg_1, arg_2));
 }
 
@@ -372,7 +377,7 @@ instruction_vec parse(const std::string& filename) {
   return program;
 }
 
-using control_flow_graph = std::map<int, int>;
+using control_flow_graph = std::multimap<int, int>;
 
 control_flow_graph build_cfg(const instruction_vec& i_vec) {
   control_flow_graph cfg;
@@ -380,7 +385,7 @@ control_flow_graph build_cfg(const instruction_vec& i_vec) {
     return cfg;
   }
   if (i_vec.size() == 1) {
-    cfg[0] = -1;
+    cfg.insert({0, -1});
     return cfg;
   }
   for (int i_index = 0; i_index < i_vec.size();++i_index) {
@@ -389,13 +394,17 @@ control_flow_graph build_cfg(const instruction_vec& i_vec) {
       // last instruction does not have continuation
       // insert -1 in this case
       if (i_index == i_vec.size() - 1) {
-        cfg[i_index] = -1;
+        cfg.insert({i_index, -1});
       } else {
-        cfg[i_index] = i_index + 1;
+        cfg.insert({i_index, i_index + 1});
       }
     } else if (i_vec[i_index]->type == op_jmp) {
       auto arg = static_cast<unary_instruction*>(i_vec[i_index].get())->arg_1;
-      cfg[i_index] = i_index + std::stoi(arg);
+      cfg.insert({i_index, i_index + std::stoi(arg)});
+    } else if (i_vec[i_index]->type == op_if) {
+      auto arg = static_cast<binary_instruction*>(i_vec[i_index].get())->arg_2;
+      cfg.insert({i_index, i_index + std::stoi(arg)});
+      cfg.insert({i_index, i_index + 1});
     }
   }
   return cfg;
