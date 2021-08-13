@@ -302,12 +302,12 @@ control_flow_graph build_cfg(const instruction_vec& i_vec) {
     cfg[0] = -1;
     return cfg;
   }
-  for (int i_index = 0; i_index < i_vec.size();) {
+  for (int i_index = 0; i_index < i_vec.size();++i_index) {
     if (i_vec[i_index]->type != op_jmp && i_vec[i_index]->type != op_call &&
         i_vec[i_index]->type != op_if && i_vec[i_index]->type != op_ret) {
       // last instruction does not have continuation
       // insert -1 in this case
-      if (i_index == i_vec.size()) {
+      if (i_index == i_vec.size() - 1) {
         cfg[i_index] = -1;
       } else {
         cfg[i_index] = i_index + 1;
@@ -316,8 +316,6 @@ control_flow_graph build_cfg(const instruction_vec& i_vec) {
       auto arg = static_cast<unary_instruction*>(i_vec[i_index].get())->arg_1;
       cfg[i_index] = i_index + std::stoi(arg);
     }
-    ++i_index;
-    continue;
   }
   return cfg;
 }
@@ -375,8 +373,9 @@ void test_sequential_code() {
   program.push_back(std::make_unique<binary_instruction>(op_var, "b", "int8"));
   program.push_back(std::make_unique<binary_instruction>(op_mov, "b", "2"));
   auto cfg = build_cfg(program);
-  control_flow_graph expected_cfg = {{0, 1}, {1, 2}, {2, 3}, {3, 4}};
+  control_flow_graph expected_cfg = {{0, 1}, {1, 2}, {2, 3}, {3, -1}};
   assert(cfg == expected_cfg);
+  dump_cfg_to_dot(program, std::cout);
 }
 
 void test_jmp_code()
