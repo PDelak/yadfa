@@ -6,6 +6,7 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <sstream>
 
 enum instruction_type {
   op_var = 0,
@@ -360,9 +361,14 @@ void test_build_instruction_vec_by_hand() {
   program.push_back(std::make_unique<binary_instruction>(op_var, "b", "int8"));
   program.push_back(std::make_unique<binary_instruction>(op_mov, "b", "2"));
   program.push_back(std::make_unique<three_addr_instruction>(op_add, "c", "a", "b"));
-  program.push_back(std::make_unique<unary_instruction>(op_jmp, "label"));
+
+  std::string expected[5] = {"var a int32", "mov a 4", "var b int8", "mov b 2", "add c a b"};
+  int index = 0;
   for (const auto& i : program) {
-    i->dump(std::cout);
+    std::ostringstream instr;
+    i->dump(instr);
+    assert(instr.str() == expected[index]);
+    ++index;
   }
 }
 
@@ -393,6 +399,7 @@ void test_jmp_code()
 }
 
 int main() {
+  test_build_instruction_vec_by_hand();
   test_sequential_code();
   test_jmp_code();
   auto program = parse("prog");
