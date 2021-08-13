@@ -3,4 +3,5 @@ var a int32
 mov a 4
 var b int8
 mov b 2
+cmp_eq b a b
 jmp -3

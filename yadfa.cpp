@@ -170,13 +170,17 @@ bool isminus(char c) {
   return c == '-';
 }
 
+bool is_identifier(char c) {
+  return isalpha(c) || c == '_';
+}
+
 std::string getNextToken(scanning_state& state) {
   if (!state.eof() && isspace(*state.current)) {
     auto end = std::find_if_not(state.current, state.end, isspace);
     state.current = end;
   }
-  if (!state.eof() && isalpha(*state.current)) {
-    auto token_end = std::find_if_not(state.current, state.end, isalpha);
+  if (!state.eof() && is_identifier(*state.current)) {
+    auto token_end = std::find_if_not(state.current, state.end, is_identifier);
     std::string token = std::string(state.current, token_end);
     state.current = token_end;
 
@@ -457,7 +461,6 @@ void test_sequential_code() {
   auto cfg = build_cfg(program);
   control_flow_graph expected_cfg = {{0, 1}, {1, 2}, {2, 3}, {3, -1}};
   assert(cfg == expected_cfg);
-  dump_cfg_to_dot(program, std::cout);
 }
 
 void test_jmp_code()
