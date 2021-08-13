@@ -20,7 +20,13 @@ enum instruction_type {
   op_sub,
   op_ret,
   op_new,
-  op_delete
+  op_delete,
+  op_cmp_eq,   // ==
+  op_cmp_neq,  // !=
+  op_cmp_gt,   // >
+  op_cmp_lt,   // <
+  op_cmp_lte,  // <=
+  op_cmp_gte   // >=
 };
 
 struct instruction {
@@ -70,7 +76,24 @@ struct instruction {
       case op_delete:
         out << std::string("delete");
         break;
-
+      case op_cmp_eq:
+        out << std::string("cmp_eq");
+        break;
+      case op_cmp_neq:
+        out << std::string("cmp_neq");
+        break;
+      case op_cmp_gt:
+        out << std::string("cmp_gt");
+        break;
+      case op_cmp_lt:
+        out << std::string("cmp_lt");
+        break;
+      case op_cmp_lte:
+        out << std::string("cmp_lte");
+        break;
+      case op_cmp_gte:
+        out << std::string("cmp_gte");
+        break;
       default:
         break;
     }
@@ -254,6 +277,48 @@ void parse_delete(instruction_vec& i_vec, scanning_state& state) {
   i_vec.push_back(std::make_unique<unary_instruction>(op_delete, arg));
 }
 
+void parse_cmp_eq(instruction_vec& i_vec, scanning_state& state) {
+  auto arg_1 = getNextToken(state);
+  auto arg_2 = getNextToken(state);
+  auto arg_3 = getNextToken(state);
+  i_vec.push_back(std::make_unique<three_addr_instruction>(op_cmp_eq, arg_1, arg_2, arg_3));
+}
+
+void parse_cmp_neq(instruction_vec& i_vec, scanning_state& state) {
+  auto arg_1 = getNextToken(state);
+  auto arg_2 = getNextToken(state);
+  auto arg_3 = getNextToken(state);
+  i_vec.push_back(std::make_unique<three_addr_instruction>(op_cmp_neq, arg_1, arg_2, arg_3));
+}
+
+void parse_cmp_lt(instruction_vec& i_vec, scanning_state& state) {
+  auto arg_1 = getNextToken(state);
+  auto arg_2 = getNextToken(state);
+  auto arg_3 = getNextToken(state);
+  i_vec.push_back(std::make_unique<three_addr_instruction>(op_cmp_lt, arg_1, arg_2, arg_3));
+}
+
+void parse_cmp_lte(instruction_vec& i_vec, scanning_state& state) {
+  auto arg_1 = getNextToken(state);
+  auto arg_2 = getNextToken(state);
+  auto arg_3 = getNextToken(state);
+  i_vec.push_back(std::make_unique<three_addr_instruction>(op_cmp_lte, arg_1, arg_2, arg_3));
+}
+
+void parse_cmp_gt(instruction_vec& i_vec, scanning_state& state) {
+  auto arg_1 = getNextToken(state);
+  auto arg_2 = getNextToken(state);
+  auto arg_3 = getNextToken(state);
+  i_vec.push_back(std::make_unique<three_addr_instruction>(op_cmp_gt, arg_1, arg_2, arg_3));
+}
+
+void parse_cmp_gte(instruction_vec& i_vec, scanning_state& state) {
+  auto arg_1 = getNextToken(state);
+  auto arg_2 = getNextToken(state);
+  auto arg_3 = getNextToken(state);
+  i_vec.push_back(std::make_unique<three_addr_instruction>(op_cmp_gte, arg_1, arg_2, arg_3));
+}
+
 instruction_vec parse(const std::string& filename) {
   std::ifstream in(filename);
   std::string line;
@@ -286,9 +351,20 @@ instruction_vec parse(const std::string& filename) {
       parse_new(program, state);
     } else if (token == "delete") {
       parse_delete(program, state);
+    } else if (token == "cmp_eq") {
+      parse_cmp_eq(program, state);
+    } else if (token == "cmp_neq") {
+      parse_cmp_neq(program, state);
+    } else if (token == "cmp_lt") {
+      parse_cmp_lt(program, state);
+    } else if (token == "cmp_gt") {
+      parse_cmp_gt(program, state);
+    } else if (token == "cmp_gte") {
+      parse_cmp_gte(program, state);
+    } else if (token == "cmp_lte") {
+      parse_cmp_lte(program, state);
     }
   }
-
   return program;
 }
 
