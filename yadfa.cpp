@@ -379,13 +379,23 @@ void test_sequential_code() {
   assert(cfg == expected_cfg);
 }
 
-void test_branching_code()
+void test_jmp_code()
 {
+  instruction_vec program;
+  program.push_back(std::make_unique<binary_instruction>(op_var, "a", "int32"));
+  program.push_back(std::make_unique<binary_instruction>(op_mov, "a", "4"));
+  program.push_back(std::make_unique<binary_instruction>(op_var, "b", "int8"));
+  program.push_back(std::make_unique<binary_instruction>(op_mov, "b", "2"));
+  program.push_back(std::make_unique<unary_instruction>(op_jmp, "-2"));
 
+  auto cfg = build_cfg(program);
+  control_flow_graph expected_cfg = {{0, 1}, {1, 2}, {2, 3}, {3, 4},{4,2}};
+  assert(cfg == expected_cfg);
 }
 
 int main() {
   test_sequential_code();
+  test_jmp_code();
   auto program = parse("prog");
   auto cfg = build_cfg(program);
   dump_cfg_to_dot(program, std::cout);
