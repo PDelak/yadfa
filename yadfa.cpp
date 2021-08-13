@@ -255,6 +255,10 @@ void parse_if(instruction_vec& i_vec, scanning_state& state) {
 
 void parse_call(instruction_vec& i_vec, scanning_state& state) {
   auto arg = getNextToken(state);
+  if (arg == "-") {
+    arg = getNextToken(state);
+    arg = "-" + arg;
+  }
   i_vec.push_back(std::make_unique<unary_instruction>(op_call, arg));
 }
 
@@ -403,6 +407,10 @@ control_flow_graph build_cfg(const instruction_vec& i_vec) {
       cfg.insert({i_index, i_index + std::stoi(arg)});
     } else if (i_vec[i_index]->type == op_if) {
       auto arg = static_cast<binary_instruction*>(i_vec[i_index].get())->arg_2;
+      cfg.insert({i_index, i_index + std::stoi(arg)});
+      cfg.insert({i_index, i_index + 1});
+    } else if (i_vec[i_index]->type == op_call) {
+      auto arg = static_cast<unary_instruction*>(i_vec[i_index].get())->arg_1;
       cfg.insert({i_index, i_index + std::stoi(arg)});
       cfg.insert({i_index, i_index + 1});
     }
