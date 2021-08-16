@@ -27,7 +27,8 @@ enum instruction_type {
   op_cmp_gt,   // >
   op_cmp_lt,   // <
   op_cmp_lte,  // <=
-  op_cmp_gte   // >=
+  op_cmp_gte,  // >=
+  op_label
 };
 
 struct instruction {
@@ -95,6 +96,9 @@ struct instruction {
       case op_cmp_gte:
         out << std::string("cmp_gte");
         break;
+      case op_label:
+        out << std::string("label");
+        break;
       default:
         break;
     }
@@ -152,6 +156,12 @@ struct three_addr_instruction : public instruction {
   }
 };
 
+struct label_table
+{
+  using internal_label_table = std::map<std::string, int>;
+  internal_label_table instance;
+};
+
 using instruction_vec = std::vector<instruction_ptr>;
 
 struct scanning_state {
@@ -173,6 +183,10 @@ bool isminus(char c) {
 
 bool is_identifier(char c) {
   return isalpha(c) || c == '_';
+}
+
+bool iscolon(char c) {
+  return c == ':';
 }
 
 std::string getNextToken(scanning_state& state) {
@@ -203,6 +217,12 @@ std::string getNextToken(scanning_state& state) {
   }
 
   if (!state.eof() && isminus(*state.current)) {
+    auto token_end = state.current + 1;
+    std::string token = std::string(state.current, token_end);
+    state.current = token_end;
+    return token;
+  }
+  if (!state.eof() && iscolon(*state.current)) {
     auto token_end = state.current + 1;
     std::string token = std::string(state.current, token_end);
     state.current = token_end;
@@ -333,7 +353,14 @@ void parse_cmp_gte(instruction_vec& i_vec, scanning_state& state) {
   i_vec.push_back(std::make_unique<three_addr_instruction>(op_cmp_gte, arg_1, arg_2, arg_3));
 }
 
-instruction_vec parse(const std::string& filename) {
+void parse_label(instruction_vec& i_vec, scanning_state& state, label_table& table) {
+  auto arg = getNextToken(state);
+  i_vec.push_back(std::make_unique<unary_instruction>(op_label, arg));
+  table.instance[arg] = i_vec.size();
+  auto colon = getNextToken((state));
+}
+
+instruction_vec parse(const std::string& filename, label_table& table) {
   std::ifstream in(filename);
   std::string line;
   instruction_vec program;
@@ -377,6 +404,8 @@ instruction_vec parse(const std::string& filename) {
       parse_cmp_gte(program, state);
     } else if (token == "cmp_lte") {
       parse_cmp_lte(program, state);
+    } else if (token == "label") {
+      parse_label(program, state, table);
     }
   }
   return program;
@@ -384,7 +413,7 @@ instruction_vec parse(const std::string& filename) {
 
 using control_flow_graph = std::multimap<int, int>;
 
-control_flow_graph build_cfg(const instruction_vec& i_vec) {
+control_flow_graph build_cfg(const instruction_vec& i_vec, const label_table& table) {
   std::stack<int> call_stack;
   control_flow_graph cfg;
   if (i_vec.empty()) {
@@ -406,11 +435,30 @@ control_flow_graph build_cfg(const instruction_vec& i_vec) {
       }
     } else if (i_vec[i_index]->type == op_jmp) {
       auto arg = static_cast<unary_instruction*>(i_vec[i_index].get())->arg_1;
-      cfg.insert({i_index, i_index + std::stoi(arg)});
+      if (!isalpha(arg[0])) {
+        cfg.insert({i_index, i_index + std::stoi(arg)});
+      } else {
+        auto label_index_it = table.instance.find(arg);
+        if (label_index_it != table.instance.end()) {
+          cfg.insert({i_index, label_index_it->second});
+        }
+      }
     } else if (i_vec[i_index]->type == op_if) {
       auto arg = static_cast<binary_instruction*>(i_vec[i_index].get())->arg_2;
-      cfg.insert({i_index, i_index + std::stoi(arg)});
-      cfg.insert({i_index, i_index + 1});
+      if (!isalpha(arg[0])) {
+        cfg.insert({i_index, i_index + std::stoi(arg)});
+      } else {
+        auto label_index_it = table.instance.find(arg);
+        if (label_index_it != table.instance.end()) {
+          cfg.insert({i_index, label_index_it->second});
+        }
+      }
+      if (i_index == i_vec.size() -1) {
+        cfg.insert({i_index, -1});
+      }
+      else {
+        cfg.insert({i_index, i_index + 1});
+      }
     } else if (i_vec[i_index]->type == op_call) {
       auto arg = static_cast<unary_instruction*>(i_vec[i_index].get())->arg_1;
       cfg.insert({i_index, i_index + std::stoi(arg)});
@@ -427,8 +475,8 @@ control_flow_graph build_cfg(const instruction_vec& i_vec) {
   return cfg;
 }
 
-void dump_raw_cfg(const instruction_vec& i_vec, std::ostream& out) {
-  auto cfg = build_cfg(i_vec);
+void dump_raw_cfg(const instruction_vec& i_vec, const label_table& table, std::ostream& out) {
+  auto cfg = build_cfg(i_vec, table);
   for (int i_index = 0; i_index < i_vec.size(); ++i_index) {
     out << i_index << " <- ";
     i_vec[i_index]->dump(out);
@@ -442,8 +490,8 @@ void dump_raw_cfg(const instruction_vec& i_vec, std::ostream& out) {
   }
 }
 
-void dump_cfg_to_dot(const instruction_vec& i_vec, std::ostream& out) {
-  auto cfg = build_cfg(i_vec);
+void dump_cfg_to_dot(const instruction_vec& i_vec, const label_table& table, std::ostream& out) {
+  auto cfg = build_cfg(i_vec, table);
   out << "digraph {\n";
   out << "\tnode[shape=record,style=filled,fillcolor=gray95]\n";
   for (int i_index = 0; i_index < i_vec.size(); ++i_index) {
@@ -484,7 +532,8 @@ void test_sequential_code() {
   program.push_back(std::make_unique<binary_instruction>(op_mov, "a", "4"));
   program.push_back(std::make_unique<binary_instruction>(op_var, "b", "int8"));
   program.push_back(std::make_unique<binary_instruction>(op_mov, "b", "2"));
-  auto cfg = build_cfg(program);
+  label_table table;
+  auto cfg = build_cfg(program, table);
   control_flow_graph expected_cfg = {{0, 1}, {1, 2}, {2, 3}, {3, -1}};
   assert(cfg == expected_cfg);
 }
@@ -497,18 +546,29 @@ void test_jmp_code()
   program.push_back(std::make_unique<binary_instruction>(op_var, "b", "int8"));
   program.push_back(std::make_unique<binary_instruction>(op_mov, "b", "2"));
   program.push_back(std::make_unique<unary_instruction>(op_jmp, "-2"));
-
-  auto cfg = build_cfg(program);
+  label_table table;
+  auto cfg = build_cfg(program, table);
   control_flow_graph expected_cfg = {{0, 1}, {1, 2}, {2, 3}, {3, 4},{4,2}};
   assert(cfg == expected_cfg);
 }
 
-int main() {
+void usage()
+{
+  std::cerr << "yadfa prog" << std::endl;
+}
+
+int main(int argc, char* argv[]) {
+  if (argc < 2)
+  {
+    usage();
+    return -1;
+  }
   test_build_instruction_vec_by_hand();
   test_sequential_code();
   test_jmp_code();
-  auto program = parse("prog");
-  auto cfg = build_cfg(program);
-  dump_cfg_to_dot(program, std::cout);
+  label_table table;
+  auto program = parse(argv[1], table);
+  auto cfg = build_cfg(program, table);
+  dump_cfg_to_dot(program, table, std::cout);
   return 0;
 }
