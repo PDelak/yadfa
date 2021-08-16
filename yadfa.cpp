@@ -156,8 +156,7 @@ struct three_addr_instruction : public instruction {
   }
 };
 
-struct label_table
-{
+struct label_table {
   using internal_label_table = std::map<std::string, int>;
   internal_label_table instance;
 };
@@ -453,10 +452,9 @@ control_flow_graph build_cfg(const instruction_vec& i_vec, const label_table& ta
           cfg.insert({i_index, label_index_it->second});
         }
       }
-      if (i_index == i_vec.size() -1) {
+      if (i_index == i_vec.size() - 1) {
         cfg.insert({i_index, -1});
-      }
-      else {
+      } else {
         cfg.insert({i_index, i_index + 1});
       }
     } else if (i_vec[i_index]->type == op_call) {
@@ -475,8 +473,18 @@ control_flow_graph build_cfg(const instruction_vec& i_vec, const label_table& ta
   return cfg;
 }
 
-void dump_raw_cfg(const instruction_vec& i_vec, const label_table& table, std::ostream& out) {
-  auto cfg = build_cfg(i_vec, table);
+control_flow_graph build_backward_cfg(const control_flow_graph& cfg) {
+  control_flow_graph backward_cfg;
+  for (const auto& node : cfg) {
+    auto from = node.first;
+    auto to = node.second;
+    backward_cfg.insert({to, from});
+  }
+  return backward_cfg;
+}
+
+void dump_raw_cfg(const instruction_vec& i_vec, const control_flow_graph& cfg,
+                  const label_table& table, std::ostream& out) {
   for (int i_index = 0; i_index < i_vec.size(); ++i_index) {
     out << i_index << " <- ";
     i_vec[i_index]->dump(out);
@@ -490,8 +498,8 @@ void dump_raw_cfg(const instruction_vec& i_vec, const label_table& table, std::o
   }
 }
 
-void dump_cfg_to_dot(const instruction_vec& i_vec, const label_table& table, std::ostream& out) {
-  auto cfg = build_cfg(i_vec, table);
+void dump_cfg_to_dot(const instruction_vec& i_vec, const control_flow_graph& cfg,
+                     const label_table& table, std::ostream& out) {
   out << "digraph {\n";
   out << "\tnode[shape=record,style=filled,fillcolor=gray95]\n";
   for (int i_index = 0; i_index < i_vec.size(); ++i_index) {
@@ -552,14 +560,12 @@ void test_jmp_code()
   assert(cfg == expected_cfg);
 }
 
-void usage()
-{
+void usage() {
   std::cerr << "yadfa prog" << std::endl;
 }
 
 int main(int argc, char* argv[]) {
-  if (argc < 2)
-  {
+  if (argc < 2) {
     usage();
     return -1;
   }
@@ -569,6 +575,6 @@ int main(int argc, char* argv[]) {
   label_table table;
   auto program = parse(argv[1], table);
   auto cfg = build_cfg(program, table);
-  dump_cfg_to_dot(program, table, std::cout);
+  dump_cfg_to_dot(program, cfg, table, std::cout);
   return 0;
 }
