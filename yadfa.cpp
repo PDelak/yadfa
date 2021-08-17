@@ -483,8 +483,7 @@ control_flow_graph build_backward_cfg(const control_flow_graph& cfg) {
   return backward_cfg;
 }
 
-void liveness_analysis(const control_flow_graph& cfg)
-{
+void liveness_analysis(const control_flow_graph& cfg) {
   const auto backward_cfg = build_backward_cfg(cfg);
 }
 
@@ -590,8 +589,7 @@ int main(int argc, char* argv[]) {
 
   std::string command = argv[1];
 
-  if (command == "--raw-cfg")
-  {
+  if (command == "--raw-cfg") {
     if (argc < 3) {
       usage();
       return -1;
@@ -601,8 +599,7 @@ int main(int argc, char* argv[]) {
     auto cfg = build_cfg(program, table);
     dump_raw_cfg(program, cfg, table, std::cout);
   }
-
-  else if (command == "--dot-cfg"){
+  else if (command == "--dot-cfg") {
     if (argc < 3) {
       usage();
       return -1;
