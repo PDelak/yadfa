@@ -483,6 +483,11 @@ control_flow_graph build_backward_cfg(const control_flow_graph& cfg) {
   return backward_cfg;
 }
 
+void liveness_analysis(const control_flow_graph& cfg)
+{
+  const auto backward_cfg = build_backward_cfg(cfg);
+}
+
 void dump_raw_cfg(const instruction_vec& i_vec, const control_flow_graph& cfg,
                   const label_table& table, std::ostream& out) {
   for (int i_index = 0; i_index < i_vec.size(); ++i_index) {
@@ -561,20 +566,60 @@ void test_jmp_code()
 }
 
 void usage() {
-  std::cerr << "yadfa prog" << std::endl;
+  std::cerr << "yadfa --command  prog" << std::endl;
+  std::cerr << "where command : " << std::endl;
+  std::cerr << "\traw-cfg - output of raw context free graph representation" << std::endl;
+  std::cerr << "\tdot-cfg - output of dot context free graph representation" << std::endl;
+  std::cerr << "\tanalysis (liveness)" << std::endl;
 }
+
+#define YADFA_ENABLE_TESTS 1
 
 int main(int argc, char* argv[]) {
   if (argc < 2) {
     usage();
     return -1;
   }
+
+#ifdef YADFA_ENABLE_TESTS
   test_build_instruction_vec_by_hand();
   test_sequential_code();
   test_jmp_code();
+#endif
   label_table table;
-  auto program = parse(argv[1], table);
-  auto cfg = build_cfg(program, table);
-  dump_cfg_to_dot(program, cfg, table, std::cout);
+
+  std::string command = argv[1];
+
+  if (command == "--raw-cfg")
+  {
+    if (argc < 3) {
+      usage();
+      return -1;
+    }
+
+    auto program = parse(argv[2], table);
+    auto cfg = build_cfg(program, table);
+    dump_raw_cfg(program, cfg, table, std::cout);
+  }
+
+  else if (command == "--dot-cfg"){
+    if (argc < 3) {
+      usage();
+      return -1;
+    }
+    auto program = parse(argv[2], table);
+    auto cfg = build_cfg(program, table);
+    dump_cfg_to_dot(program, cfg, table, std::cout);
+  }
+  else if (command == "--analysis") {
+    if (argc < 4) {
+      usage();
+      return -1;
+    }
+    auto type_of_analysis = argv[2];
+    auto program = parse(argv[3], table);
+    auto cfg = build_cfg(program, table);
+    liveness_analysis(cfg);
+  }
   return 0;
 }
