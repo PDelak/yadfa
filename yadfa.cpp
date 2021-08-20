@@ -411,6 +411,8 @@ instruction_vec parse(const std::string& filename, label_table& table) {
 }
 
 using control_flow_graph = std::multimap<int, int>;
+using gen_set = std::map<int, std::vector<std::string>>;   // aka use set
+using kill_set = std::map<int, std::vector<std::string>>;  // aka def set
 
 control_flow_graph build_cfg(const instruction_vec& i_vec, const label_table& table) {
   std::stack<int> call_stack;
@@ -483,12 +485,104 @@ control_flow_graph build_backward_cfg(const control_flow_graph& cfg) {
   return backward_cfg;
 }
 
+void build_use_def_sets(const instruction_vec& i_vec, gen_set& out_gen_set,
+                        kill_set& out_kill_set) {
+  for (int i_index = 0; i_index < i_vec.size(); ++i_index) {
+    switch (i_vec[i_index]->type) {
+      case op_var:  // for decl, do nothing
+        break;
+      case op_mov:
+        out_kill_set[i_index].push_back(
+            static_cast<binary_instruction*>(i_vec[i_index].get())->arg_1);
+        if (static_cast<binary_instruction*>(i_vec[i_index].get())->arg_2[0] != '-' &&
+            !isdigit(static_cast<binary_instruction*>(i_vec[i_index].get())->arg_2[0])) {
+          out_gen_set[i_index].push_back(
+              static_cast<binary_instruction*>(i_vec[i_index].get())->arg_2);
+        }
+        break;
+      case op_push:
+        out_gen_set[i_index].push_back(
+            static_cast<unary_instruction*>(i_vec[i_index].get())->arg_1);
+        break;
+      case op_pop:
+        out_gen_set[i_index].push_back(
+            static_cast<unary_instruction*>(i_vec[i_index].get())->arg_1);
+        break;
+      case op_jmp:  // for unconditional jmp, do nothing
+        break;
+      case op_if:
+        out_gen_set[i_index].push_back(
+            static_cast<binary_instruction*>(i_vec[i_index].get())->arg_1);
+        break;
+      case op_call:  // do nothing
+        break;
+      case op_add:
+      case op_sub:
+        out_kill_set[i_index].push_back(
+            static_cast<three_addr_instruction*>(i_vec[i_index].get())->arg_1);
+        out_gen_set[i_index].push_back(
+            static_cast<three_addr_instruction*>(i_vec[i_index].get())->arg_2);
+        out_gen_set[i_index].push_back(
+            static_cast<three_addr_instruction*>(i_vec[i_index].get())->arg_3);
+        break;
+      case op_ret:  // do nothing
+        break;
+      case op_new:
+      case op_delete:
+        out_gen_set[i_index].push_back(
+            static_cast<three_addr_instruction*>(i_vec[i_index].get())->arg_1);
+        break;
+      case op_cmp_eq:
+      case op_cmp_neq:
+      case op_cmp_gt:
+      case op_cmp_lt:
+      case op_cmp_lte:
+      case op_cmp_gte:
+        out_kill_set[i_index].push_back(
+            static_cast<three_addr_instruction*>(i_vec[i_index].get())->arg_1);
+        out_gen_set[i_index].push_back(
+            static_cast<three_addr_instruction*>(i_vec[i_index].get())->arg_2);
+        out_gen_set[i_index].push_back(
+            static_cast<three_addr_instruction*>(i_vec[i_index].get())->arg_3);
+        break;
+      case op_label:  // do nothing
+        break;
+    }
+  }
+}
+
 void liveness_analysis(const control_flow_graph& cfg) {
   const auto backward_cfg = build_backward_cfg(cfg);
 }
 
-void dump_raw_cfg(const instruction_vec& i_vec, const control_flow_graph& cfg,
-                  const label_table& table, std::ostream& out) {
+void dump_raw_use_def_set_impl(const std::map<int, std::vector<std::string>>& input_set,
+                               std::ostream& out) {
+  for (const auto& node : input_set) {
+    auto i_index = node.first;
+    out << '\t' << i_index << "->";
+    bool first = true;
+    for (const auto& var : node.second) {
+      if (!first) {
+        out << ",";
+      }
+      first = false;
+      out << var;
+    }
+    out << '\n';
+  }
+}
+
+void dump_raw_gen_set(const gen_set& input_gen_set, std::ostream& out) {
+  out << "GEN set :" << '\n';
+  dump_raw_use_def_set_impl(input_gen_set, out);
+}
+
+void dump_raw_kill_set(const kill_set& input_kill_set, std::ostream& out) {
+  out << "KILL set :" << '\n';
+  dump_raw_use_def_set_impl(input_kill_set, out);
+}
+
+void dump_raw_cfg(const instruction_vec& i_vec, const control_flow_graph& cfg, std::ostream& out) {
   for (int i_index = 0; i_index < i_vec.size(); ++i_index) {
     out << i_index << " <- ";
     i_vec[i_index]->dump(out);
@@ -503,7 +597,7 @@ void dump_raw_cfg(const instruction_vec& i_vec, const control_flow_graph& cfg,
 }
 
 void dump_cfg_to_dot(const instruction_vec& i_vec, const control_flow_graph& cfg,
-                     const label_table& table, std::ostream& out) {
+                     std::ostream& out) {
   out << "digraph {\n";
   out << "\tnode[shape=record,style=filled,fillcolor=gray95]\n";
   for (int i_index = 0; i_index < i_vec.size(); ++i_index) {
@@ -569,6 +663,7 @@ void usage() {
   std::cerr << "where command : " << std::endl;
   std::cerr << "\traw-cfg - output of raw context free graph representation" << std::endl;
   std::cerr << "\tdot-cfg - output of dot context free graph representation" << std::endl;
+  std::cerr << "\tuse-def - output of use def sets" << std::endl;
   std::cerr << "\tanalysis (liveness)" << std::endl;
 }
 
@@ -597,7 +692,7 @@ int main(int argc, char* argv[]) {
 
     auto program = parse(argv[2], table);
     auto cfg = build_cfg(program, table);
-    dump_raw_cfg(program, cfg, table, std::cout);
+    dump_raw_cfg(program, cfg, std::cout);
   }
   else if (command == "--dot-cfg") {
     if (argc < 3) {
@@ -606,7 +701,7 @@ int main(int argc, char* argv[]) {
     }
     auto program = parse(argv[2], table);
     auto cfg = build_cfg(program, table);
-    dump_cfg_to_dot(program, cfg, table, std::cout);
+    dump_cfg_to_dot(program, cfg, std::cout);
   }
   else if (command == "--analysis") {
     if (argc < 4) {
@@ -617,6 +712,19 @@ int main(int argc, char* argv[]) {
     auto program = parse(argv[3], table);
     auto cfg = build_cfg(program, table);
     liveness_analysis(cfg);
+  } else if (command == "--use-def") {
+    if (argc < 3) {
+      usage();
+      return -1;
+    }
+    auto program = parse(argv[2], table);
+    gen_set output_gen_set;
+    kill_set output_kill_set;
+    build_use_def_sets(program, output_gen_set, output_kill_set);
+
+    dump_raw_gen_set(output_gen_set, std::cout);
+    dump_raw_kill_set(output_kill_set, std::cout);
   }
+
   return 0;
 }
