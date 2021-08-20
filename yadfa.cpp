@@ -596,15 +596,55 @@ void dump_raw_cfg(const instruction_vec& i_vec, const control_flow_graph& cfg, s
   }
 }
 
+void dump_use_def_set_to_dot(const std::string& set_label,
+                             const std::map<int, std::vector<std::string>>& input_set,
+                             std::ostream& out) {
+  out << set_label;
+  out << " [label=<\n";
+  out << "<table border=\"0\" cellborder=\"1\" cellspacing=\"0\">\n";
+  out << "<tr><td><i>";
+  out << set_label;
+  out << "</i></td></tr>\n";
+  for (const auto node : input_set) {
+    out << "<tr><td port=\"" << node.first << "\">";
+    out << node.first << ":: [";
+    bool first = true;
+    for (const auto var : node.second) {
+      if (!first) {
+        out << ",";
+      }
+      out << var;
+      first = false;
+    }
+    out << "]";
+    out << "</td></tr>\n";
+  }
+  out << "</table>>]\n";
+}
+
+void dump_kill_set_to_dot(const kill_set& input_kill_set, std::ostream& out) {
+  dump_use_def_set_to_dot("KILL_Set", input_kill_set, out);
+}
+
+void dump_gen_set_to_dot(const gen_set& input_gen_set, std::ostream& out) {
+  dump_use_def_set_to_dot("GEN_Set", input_gen_set, out);
+}
+
 void dump_cfg_to_dot(const instruction_vec& i_vec, const control_flow_graph& cfg,
+                     const gen_set& input_gen_set, const gen_set& input_kill_set,
                      std::ostream& out) {
   out << "digraph {\n";
   out << "\tnode[shape=record,style=filled,fillcolor=gray95]\n";
   for (int i_index = 0; i_index < i_vec.size(); ++i_index) {
     out << '\t' << i_index << "[label=\"";
+    out << i_index << " :: ";
     i_vec[i_index]->dump(out);
     out << "\"]\n";
   }
+
+  dump_gen_set_to_dot(input_gen_set, out);
+  dump_kill_set_to_dot(input_kill_set, out);
+
   for (const auto& node : cfg) {
     auto from = node.first;
     auto to = node.second;
@@ -701,7 +741,10 @@ int main(int argc, char* argv[]) {
     }
     auto program = parse(argv[2], table);
     auto cfg = build_cfg(program, table);
-    dump_cfg_to_dot(program, cfg, std::cout);
+    gen_set output_gen_set;
+    kill_set output_kill_set;
+    build_use_def_sets(program, output_gen_set, output_kill_set);
+    dump_cfg_to_dot(program, cfg, output_gen_set, output_kill_set, std::cout);
   }
   else if (command == "--analysis") {
     if (argc < 4) {
