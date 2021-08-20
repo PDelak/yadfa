@@ -551,10 +551,6 @@ void build_use_def_sets(const instruction_vec& i_vec, gen_set& out_gen_set,
   }
 }
 
-void liveness_analysis(const control_flow_graph& cfg) {
-  const auto backward_cfg = build_backward_cfg(cfg);
-}
-
 void dump_raw_use_def_set_impl(const std::map<int, std::vector<std::string>>& input_set,
                                std::ostream& out) {
   for (const auto& node : input_set) {
@@ -652,6 +648,58 @@ void dump_cfg_to_dot(const instruction_vec& i_vec, const control_flow_graph& cfg
     out << '\t' << from << "->" << to << '\n';
   }
   out << "}\n\n";
+}
+
+struct in_out_sets {
+  std::vector<std::string> in_set;
+  std::vector<std::string> out_set;
+};
+
+std::map<int, in_out_sets> liveness_analysis(const instruction_vec& i_vec,
+                                             const control_flow_graph& cfg) {
+  const auto backward_cfg = build_backward_cfg(cfg);
+  gen_set output_gen_set;
+  kill_set output_kill_set;
+  build_use_def_sets(i_vec, output_gen_set, output_kill_set);
+
+  std::vector<std::string> in_set;
+  std::vector<std::string> out_set;
+  std::map<int, in_out_sets> liveness_map;
+
+  auto end_node_it = backward_cfg.find(-1);
+  auto range = backward_cfg.equal_range(-1);
+  // end node must always exists
+  assert(end_node_it != backward_cfg.end());
+  // end node has only one predessor
+  assert(std::distance(range.first, range.second) == 1);
+
+  auto end_node = end_node_it->second;
+  std::stack<int> workList;
+  workList.push(end_node);
+  while (!workList.empty()) {
+    auto current_node = workList.top();
+    workList.pop();
+    // IN(node) = (OUT(node -- KILL_SET(node)) U GEN_SET(node)
+    std::vector<std::string> out_kill_diff;
+    std::set_difference(liveness_map[current_node].out_set.begin(),
+                        liveness_map[current_node].out_set.end(),
+                        output_kill_set[current_node].begin(), output_kill_set[current_node].end(),
+                        std::inserter(out_kill_diff, out_kill_diff.begin()));
+
+    std::set_union(out_kill_diff.begin(), out_kill_diff.end(), output_gen_set[current_node].begin(),
+                   output_gen_set[current_node].end(),
+                   std::inserter(liveness_map[current_node].in_set,
+                                 liveness_map[current_node].in_set.begin()));
+
+    // OUT(node) = U IN(p) where p E succ(node)
+
+    auto next_node_it = backward_cfg.find(current_node);
+    if (next_node_it != backward_cfg.end()) {
+      workList.push(next_node_it->second);
+    }
+  }
+  dump_cfg_to_dot(i_vec, backward_cfg, output_gen_set, output_kill_set, std::cout);
+  return liveness_map;
 }
 
 void test_build_instruction_vec_by_hand() {
@@ -754,7 +802,7 @@ int main(int argc, char* argv[]) {
     auto type_of_analysis = argv[2];
     auto program = parse(argv[3], table);
     auto cfg = build_cfg(program, table);
-    liveness_analysis(cfg);
+    liveness_analysis(program, cfg);
   } else if (command == "--use-def") {
     if (argc < 3) {
       usage();
