@@ -28,7 +28,8 @@ enum instruction_type {
   op_cmp_lt,   // <
   op_cmp_lte,  // <=
   op_cmp_gte,  // >=
-  op_label
+  op_label,
+  op_function
 };
 
 struct instruction {
@@ -153,6 +154,21 @@ struct three_addr_instruction : public instruction {
   }
   instruction* clone() {
     return new three_addr_instruction(*this);
+  }
+};
+
+struct n_addr_instruction : public instruction {
+  n_addr_instruction(instruction_type t, std::vector<std::string> a) : instruction(t), args(a) {}
+  std::vector<std::string> args;
+  std::ostream& dump(std::ostream& out) {
+    dump_type(out) << ' ';
+    for (const auto a : args) {
+      out << a;
+    }
+    return out;
+  }
+  instruction* clone() {
+    return new n_addr_instruction(*this);
   }
 };
 
@@ -692,6 +708,16 @@ std::map<int, in_out_sets> liveness_analysis(const instruction_vec& i_vec,
                                  liveness_map[current_node].in_set.begin()));
 
     // OUT(node) = U IN(p) where p E succ(node)
+    std::vector<std::string> union_of_in_set;
+    auto successors_range = cfg.equal_range(current_node);
+    for (auto succ_begin = successors_range.first; succ_begin != successors_range.second;
+         ++succ_begin) {
+      std::set_union(liveness_map[succ_begin->second].in_set.begin(),
+                     liveness_map[succ_begin->second].in_set.end(), union_of_in_set.begin(),
+                     union_of_in_set.end(),
+                     std::inserter(union_of_in_set, union_of_in_set.begin()));
+    }
+    liveness_map[current_node].out_set = union_of_in_set;
 
     auto next_node_it = backward_cfg.find(current_node);
     if (next_node_it != backward_cfg.end()) {
