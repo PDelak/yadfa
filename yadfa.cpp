@@ -426,9 +426,15 @@ instruction_vec parse(const std::string& filename, label_table& table) {
   return program;
 }
 
+struct in_out_sets {
+  std::vector<std::string> in_set;
+  std::vector<std::string> out_set;
+};
+
 using control_flow_graph = std::multimap<int, int>;
 using gen_set = std::map<int, std::vector<std::string>>;   // aka use set
 using kill_set = std::map<int, std::vector<std::string>>;  // aka def set
+using liveness_sets = std::map<int, in_out_sets>;
 
 control_flow_graph build_cfg(const instruction_vec& i_vec, const label_table& table) {
   std::stack<int> call_stack;
@@ -666,12 +672,36 @@ void dump_cfg_to_dot(const instruction_vec& i_vec, const control_flow_graph& cfg
   out << "}\n\n";
 }
 
-struct in_out_sets {
-  std::vector<std::string> in_set;
-  std::vector<std::string> out_set;
-};
+void dump_raw_liveness(const liveness_sets& liveness_sets_input, std::ostream& out)
+{
+  for (const auto& node : liveness_sets_input) {
+    auto i_index = node.first;
+    if (i_index == -1) continue; // skip this
+    bool first = true;
+    std::cout << "in  (" << i_index << ") {";
+    for (const auto& var : node.second.in_set) {
+      if (!first) {
+        out << ",";
+      }
+      first = false;
+      out << var;
+    }
+    out << "}\n";
+    first = true;
+    std::cout << "out (" << i_index << ") {";
+    for (const auto& var : node.second.in_set) {
+      if (!first) {
+        out << ",";
+      }
+      first = false;
+      out << var;
+    }
+    out << "}\n";
+  }
+}
 
-std::map<int, in_out_sets> liveness_analysis(const instruction_vec& i_vec,
+
+liveness_sets liveness_analysis(const instruction_vec& i_vec,
                                              const control_flow_graph& cfg) {
   const auto backward_cfg = build_backward_cfg(cfg);
   gen_set output_gen_set;
@@ -680,7 +710,7 @@ std::map<int, in_out_sets> liveness_analysis(const instruction_vec& i_vec,
 
   std::vector<std::string> in_set;
   std::vector<std::string> out_set;
-  std::map<int, in_out_sets> liveness_map;
+  liveness_sets liveness_map;
 
   auto end_node_it = backward_cfg.find(-1);
   auto range = backward_cfg.equal_range(-1);
@@ -829,8 +859,10 @@ int main(int argc, char* argv[]) {
     auto type_of_analysis = argv[2];
     auto program = parse(argv[3], table);
     auto cfg = build_cfg(program, table);
-    liveness_analysis(program, cfg);
-  } else if (command == "--use-def") {
+    auto liveness_sets = liveness_analysis(program, cfg);
+    dump_raw_liveness(liveness_sets, std::cout);
+  }
+  else if (command == "--use-def") {
     if (argc < 3) {
       usage();
       return -1;
@@ -842,6 +874,10 @@ int main(int argc, char* argv[]) {
 
     dump_raw_gen_set(output_gen_set, std::cout);
     dump_raw_kill_set(output_kill_set, std::cout);
+  }
+  else {
+    usage();
+    return -1;
   }
 
   return 0;
