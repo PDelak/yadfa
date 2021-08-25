@@ -2,13 +2,13 @@
 #include <cassert>
 #include <fstream>
 #include <iostream>
+#include <iterator>
 #include <map>
 #include <memory>
 #include <sstream>
 #include <stack>
 #include <string>
 #include <vector>
-#include <iterator>
 
 enum instruction_type {
   op_var = 0,
@@ -34,8 +34,8 @@ enum instruction_type {
 };
 
 class file_not_found_exception : public std::runtime_error {
-public:
-  file_not_found_exception(const char *what) : std::runtime_error(what) {}
+ public:
+  file_not_found_exception(const char* what) : std::runtime_error(what) {}
 };
 
 struct instruction {
@@ -106,6 +106,8 @@ struct instruction {
       case op_label:
         out << std::string("label");
         break;
+      case op_function:
+        out << std::string("function");
       default:
         break;
     }
@@ -167,10 +169,20 @@ struct n_addr_instruction : public instruction {
   n_addr_instruction(instruction_type t, std::vector<std::string> a) : instruction(t), args(a) {}
   std::vector<std::string> args;
   std::ostream& dump(std::ostream& out) {
+    int arg_number = 0;
     dump_type(out) << ' ';
     for (const auto a : args) {
+      // arguments start from second
+      if (arg_number == 1) {
+        out << " (";
+      }
+      if (arg_number > 1) {
+        out << ' ';
+      }
       out << a;
+      ++arg_number;
     }
+    out << ')';
     return out;
   }
   instruction* clone() {
@@ -381,11 +393,28 @@ void parse_label(instruction_vec& i_vec, scanning_state& state, label_table& tab
   auto colon = getNextToken((state));
 }
 
-std::string read_file(const std::string file)
-{
+void parse_function(instruction_vec& i_vec, scanning_state& state, label_table& table) {
+  auto function_name = getNextToken(state);
+  auto open_bracket = getNextToken(state);
+  std::vector<std::string> function_args;
+  function_args.push_back(function_name);
+  std::string token;
+  do {
+    token = getNextToken(state);
+    if (isdigit(token[0])) {
+      function_args.back() = function_args.back() + token;
+      continue;
+    }
+    if (token != ")") {
+      function_args.push_back(token);
+    }
+  } while (token != ")");
+  i_vec.push_back(std::make_unique<n_addr_instruction>(op_function, function_args));
+}
+
+std::string read_file(const std::string file) {
   std::ifstream in(file);
-  if (!in.is_open())
-    throw file_not_found_exception("FileNotFound");
+  if (!in.is_open()) throw file_not_found_exception("FileNotFound");
   in.unsetf(std::ios::skipws);
   std::istream_iterator<char> begin(in);
   std::istream_iterator<char> end;
@@ -441,8 +470,10 @@ instruction_vec parse(const std::string& filename, label_table& table) {
       parse_cmp_lte(program, state);
     } else if (token == "label") {
       parse_label(program, state, table);
+    } else if (token == "function") {
+      parse_function(program, state, table);
     }
-  } while(!state.eof());
+  } while (!state.eof());
   return program;
 }
 
