@@ -695,17 +695,6 @@ std::map<int, in_out_sets> liveness_analysis(const instruction_vec& i_vec,
   while (!workList.empty()) {
     auto current_node = workList.top();
     workList.pop();
-    // IN(node) = (OUT(node -- KILL_SET(node)) U GEN_SET(node)
-    std::vector<std::string> out_kill_diff;
-    std::set_difference(liveness_map[current_node].out_set.begin(),
-                        liveness_map[current_node].out_set.end(),
-                        output_kill_set[current_node].begin(), output_kill_set[current_node].end(),
-                        std::inserter(out_kill_diff, out_kill_diff.begin()));
-
-    std::set_union(out_kill_diff.begin(), out_kill_diff.end(), output_gen_set[current_node].begin(),
-                   output_gen_set[current_node].end(),
-                   std::inserter(liveness_map[current_node].in_set,
-                                 liveness_map[current_node].in_set.begin()));
 
     // OUT(node) = U IN(p) where p E succ(node)
     std::vector<std::string> union_of_in_set;
@@ -719,12 +708,24 @@ std::map<int, in_out_sets> liveness_analysis(const instruction_vec& i_vec,
     }
     liveness_map[current_node].out_set = union_of_in_set;
 
+    // IN(node) = (OUT(node -- KILL_SET(node)) U GEN_SET(node)
+    std::vector<std::string> out_kill_diff;
+    std::set_difference(liveness_map[current_node].out_set.begin(),
+                        liveness_map[current_node].out_set.end(),
+                        output_kill_set[current_node].begin(), output_kill_set[current_node].end(),
+                        std::inserter(out_kill_diff, out_kill_diff.begin()));
+
+    std::set_union(out_kill_diff.begin(), out_kill_diff.end(), output_gen_set[current_node].begin(),
+                   output_gen_set[current_node].end(),
+                   std::inserter(liveness_map[current_node].in_set,
+                                 liveness_map[current_node].in_set.begin()));
+
     auto next_node_it = backward_cfg.find(current_node);
     if (next_node_it != backward_cfg.end()) {
       workList.push(next_node_it->second);
     }
   }
-  dump_cfg_to_dot(i_vec, backward_cfg, output_gen_set, output_kill_set, std::cout);
+
   return liveness_map;
 }
 
