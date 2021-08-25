@@ -648,8 +648,51 @@ void dump_gen_set_to_dot(const gen_set& input_gen_set, std::ostream& out) {
   dump_use_def_set_to_dot("GEN_Set", input_gen_set, out);
 }
 
+void dump_liveness_sets_to_dot(const std::string& set_label,
+                               const liveness_sets & liveness_input_set,
+                               std::ostream& out) {
+  out << set_label;
+  out << " [label=<\n";
+  out << "<table border=\"0\" cellborder=\"1\" cellspacing=\"0\">\n";
+  out << "<tr><td><i>";
+  out << set_label;
+  out << "</i></td></tr>\n";
+  for (const auto node : liveness_input_set) {
+    if (node.first == -1) continue;
+    out << "<tr><td port=\"" << node.first << "\">";
+    out << node.first << " inp " << ":: [";
+    bool first = true;
+    for (const auto var : node.second.in_set) {
+      if (!first) {
+        out << ",";
+      }
+      out << var;
+      first = false;
+    }
+    out << "]";
+    out << "</td></tr>\n";
+
+    out << "<tr><td port=\"" << node.first << "\">";
+    out << node.first << " out " << ":: [";
+
+    first = true;
+    for (const auto var : node.second.out_set) {
+      if (!first) {
+        out << ",";
+      }
+      out << var;
+      first = false;
+    }
+    out << "]";
+    out << "</td></tr>\n";
+
+  }
+  out << "</table>>]\n";
+}
+
 void dump_cfg_to_dot(const instruction_vec& i_vec, const control_flow_graph& cfg,
                      const gen_set& input_gen_set, const gen_set& input_kill_set,
+                     const liveness_sets& liveness_sets_input,
                      std::ostream& out) {
   out << "digraph {\n";
   out << "\tnode[shape=record,style=filled,fillcolor=gray95]\n";
@@ -662,6 +705,8 @@ void dump_cfg_to_dot(const instruction_vec& i_vec, const control_flow_graph& cfg
 
   dump_gen_set_to_dot(input_gen_set, out);
   dump_kill_set_to_dot(input_kill_set, out);
+  dump_liveness_sets_to_dot("LIVE",liveness_sets_input, std::cout);
+
 
   for (const auto& node : cfg) {
     auto from = node.first;
@@ -672,11 +717,10 @@ void dump_cfg_to_dot(const instruction_vec& i_vec, const control_flow_graph& cfg
   out << "}\n\n";
 }
 
-void dump_raw_liveness(const liveness_sets& liveness_sets_input, std::ostream& out)
-{
+void dump_raw_liveness(const liveness_sets& liveness_sets_input, std::ostream& out) {
   for (const auto& node : liveness_sets_input) {
     auto i_index = node.first;
-    if (i_index == -1) continue; // skip this
+    if (i_index == -1) continue;  // skip this
     bool first = true;
     std::cout << "in  (" << i_index << ") {";
     for (const auto& var : node.second.in_set) {
@@ -689,7 +733,7 @@ void dump_raw_liveness(const liveness_sets& liveness_sets_input, std::ostream& o
     out << "}\n";
     first = true;
     std::cout << "out (" << i_index << ") {";
-    for (const auto& var : node.second.in_set) {
+    for (const auto& var : node.second.out_set) {
       if (!first) {
         out << ",";
       }
@@ -700,9 +744,7 @@ void dump_raw_liveness(const liveness_sets& liveness_sets_input, std::ostream& o
   }
 }
 
-
-liveness_sets liveness_analysis(const instruction_vec& i_vec,
-                                             const control_flow_graph& cfg) {
+liveness_sets liveness_analysis(const instruction_vec& i_vec, const control_flow_graph& cfg) {
   const auto backward_cfg = build_backward_cfg(cfg);
   gen_set output_gen_set;
   kill_set output_kill_set;
@@ -849,7 +891,8 @@ int main(int argc, char* argv[]) {
     gen_set output_gen_set;
     kill_set output_kill_set;
     build_use_def_sets(program, output_gen_set, output_kill_set);
-    dump_cfg_to_dot(program, cfg, output_gen_set, output_kill_set, std::cout);
+    auto liveness_sets = liveness_analysis(program, cfg);
+    dump_cfg_to_dot(program, cfg, output_gen_set, output_kill_set, liveness_sets, std::cout);
   }
   else if (command == "--analysis") {
     if (argc < 4) {
@@ -861,8 +904,7 @@ int main(int argc, char* argv[]) {
     auto cfg = build_cfg(program, table);
     auto liveness_sets = liveness_analysis(program, cfg);
     dump_raw_liveness(liveness_sets, std::cout);
-  }
-  else if (command == "--use-def") {
+  } else if (command == "--use-def") {
     if (argc < 3) {
       usage();
       return -1;
@@ -874,8 +916,7 @@ int main(int argc, char* argv[]) {
 
     dump_raw_gen_set(output_gen_set, std::cout);
     dump_raw_kill_set(output_kill_set, std::cout);
-  }
-  else {
+  } else {
     usage();
     return -1;
   }
