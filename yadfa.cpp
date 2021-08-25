@@ -8,6 +8,7 @@
 #include <stack>
 #include <string>
 #include <vector>
+#include <iterator>
 
 enum instruction_type {
   op_var = 0,
@@ -30,6 +31,11 @@ enum instruction_type {
   op_cmp_gte,  // >=
   op_label,
   op_function
+};
+
+class file_not_found_exception : public std::runtime_error {
+public:
+  file_not_found_exception(const char *what) : std::runtime_error(what) {}
 };
 
 struct instruction {
@@ -375,13 +381,27 @@ void parse_label(instruction_vec& i_vec, scanning_state& state, label_table& tab
   auto colon = getNextToken((state));
 }
 
+std::string read_file(const std::string file)
+{
+  std::ifstream in(file);
+  if (!in.is_open())
+    throw file_not_found_exception("FileNotFound");
+  in.unsetf(std::ios::skipws);
+  std::istream_iterator<char> begin(in);
+  std::istream_iterator<char> end;
+  std::string buffer;
+  std::copy(begin, end, std::back_inserter(buffer));
+  return buffer;
+}
+
 instruction_vec parse(const std::string& filename, label_table& table) {
   std::ifstream in(filename);
   std::string line;
   instruction_vec program;
-  while (std::getline(in, line)) {
+  const auto parse_buf = read_file(filename);
+  scanning_state state(parse_buf);
+  do {
     std::string token;
-    scanning_state state(line);
     token = getNextToken(state);
     if (token == "var") {
       parse_var(program, state);
@@ -422,7 +442,7 @@ instruction_vec parse(const std::string& filename, label_table& table) {
     } else if (token == "label") {
       parse_label(program, state, table);
     }
-  }
+  } while(!state.eof());
   return program;
 }
 
@@ -649,8 +669,7 @@ void dump_gen_set_to_dot(const gen_set& input_gen_set, std::ostream& out) {
 }
 
 void dump_liveness_sets_to_dot(const std::string& set_label,
-                               const liveness_sets & liveness_input_set,
-                               std::ostream& out) {
+                               const liveness_sets& liveness_input_set, std::ostream& out) {
   out << set_label;
   out << " [label=<\n";
   out << "<table border=\"0\" cellborder=\"1\" cellspacing=\"0\">\n";
@@ -660,7 +679,8 @@ void dump_liveness_sets_to_dot(const std::string& set_label,
   for (const auto node : liveness_input_set) {
     if (node.first == -1) continue;
     out << "<tr><td port=\"" << node.first << "\">";
-    out << node.first << " inp " << ":: [";
+    out << node.first << " inp "
+        << ":: [";
     bool first = true;
     for (const auto var : node.second.in_set) {
       if (!first) {
@@ -673,7 +693,8 @@ void dump_liveness_sets_to_dot(const std::string& set_label,
     out << "</td></tr>\n";
 
     out << "<tr><td port=\"" << node.first << "\">";
-    out << node.first << " out " << ":: [";
+    out << node.first << " out "
+        << ":: [";
 
     first = true;
     for (const auto var : node.second.out_set) {
@@ -685,15 +706,13 @@ void dump_liveness_sets_to_dot(const std::string& set_label,
     }
     out << "]";
     out << "</td></tr>\n";
-
   }
   out << "</table>>]\n";
 }
 
 void dump_cfg_to_dot(const instruction_vec& i_vec, const control_flow_graph& cfg,
                      const gen_set& input_gen_set, const gen_set& input_kill_set,
-                     const liveness_sets& liveness_sets_input,
-                     std::ostream& out) {
+                     const liveness_sets& liveness_sets_input, std::ostream& out) {
   out << "digraph {\n";
   out << "\tnode[shape=record,style=filled,fillcolor=gray95]\n";
   for (int i_index = 0; i_index < i_vec.size(); ++i_index) {
@@ -705,8 +724,7 @@ void dump_cfg_to_dot(const instruction_vec& i_vec, const control_flow_graph& cfg
 
   dump_gen_set_to_dot(input_gen_set, out);
   dump_kill_set_to_dot(input_kill_set, out);
-  dump_liveness_sets_to_dot("LIVE",liveness_sets_input, std::cout);
-
+  dump_liveness_sets_to_dot("LIVE", liveness_sets_input, std::cout);
 
   for (const auto& node : cfg) {
     auto from = node.first;
