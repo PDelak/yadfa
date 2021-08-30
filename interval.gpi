@@ -1,0 +1,12 @@
+set terminal png
+
+set xrange[0:10]
+set yrange[0:10]
+
+set style line 2 \
+    linecolor rgb '#dd181f' \
+    linetype 1 linewidth 2 \
+    pointtype 5 pointsize 1.5
+
+load "variables.dat"
+plot 'intervals.dat' with linespoints linestyle 2 title ''
