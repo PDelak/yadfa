@@ -5,6 +5,7 @@
 #include <iterator>
 #include <map>
 #include <memory>
+#include <set>
 #include <sstream>
 #include <stack>
 #include <string>
@@ -482,6 +483,9 @@ struct in_out_sets {
   std::vector<std::string> out_set;
 };
 
+using live_range = std::pair<size_t, size_t>;
+using variable_interval_map = std::multimap<std::string, live_range>;
+
 using control_flow_graph = std::multimap<int, int>;
 using gen_set = std::map<int, std::vector<std::string>>;   // aka use set
 using kill_set = std::map<int, std::vector<std::string>>;  // aka def set
@@ -850,6 +854,49 @@ liveness_sets liveness_analysis(const instruction_vec& i_vec, const control_flow
   return liveness_map;
 }
 
+variable_interval_map compute_variables_live_ranges(const liveness_sets& live_sets) {
+  variable_interval_map variables_intervals;
+  std::multimap<std::string, int> variable_live_points;
+  for (const auto& in_out_live_set : live_sets) {
+    for (const auto& variable : in_out_live_set.second.in_set) {
+      variable_live_points.insert({variable, in_out_live_set.first});
+    }
+    for (const auto& variable : in_out_live_set.second.out_set) {
+      variable_live_points.insert({variable, in_out_live_set.first});
+    }
+  }
+  int previous = variable_live_points.begin()->second;
+  int begin = previous;
+  std::string previousVar = variable_live_points.begin()->first;
+  int index = 0;
+  for (const auto& var : variable_live_points) {
+    if (var.second - previous > 1 || var.first != previousVar) {
+      live_range range;
+      range.first = begin;
+      range.second = previous;
+      variables_intervals.insert({previousVar, range});
+      begin = var.second;
+      previousVar = var.first;
+    }
+    if (index == variable_live_points.size() - 1) {
+      live_range range;
+      range.first = begin;
+      range.second = var.second;
+      variables_intervals.insert({previousVar, range});
+    }
+    previous = var.second;
+    ++index;
+  }
+  return variables_intervals;
+}
+
+void dump_variable_intervals(const variable_interval_map& variables_intervals, std::ostream& out) {
+  for (const auto& interval : variables_intervals) {
+    out << interval.first << "[" << interval.second.first << "," << interval.second.second << "]"
+        << std::endl;
+  }
+}
+
 void test_build_instruction_vec_by_hand() {
   instruction_vec program;
   program.push_back(std::make_unique<binary_instruction>(op_var, "a", "int32"));
@@ -953,6 +1000,8 @@ int main(int argc, char* argv[]) {
     auto cfg = build_cfg(program, table);
     auto liveness_sets = liveness_analysis(program, cfg);
     dump_raw_liveness(liveness_sets, std::cout);
+    auto variable_intervals = compute_variables_live_ranges(liveness_sets);
+    dump_variable_intervals(variable_intervals, std::cout);
   } else if (command == "--use-def") {
     if (argc < 3) {
       usage();
