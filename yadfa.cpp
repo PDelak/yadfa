@@ -897,6 +897,63 @@ void dump_variable_intervals(const variable_interval_map& variables_intervals, s
   }
 }
 
+void generate_gnuplot_interval(const variable_interval_map& variables_intervals) {
+  std::map<std::string, int> variable_to_index;
+  size_t min_range = std::numeric_limits<size_t>::max();
+  size_t max_range = std::numeric_limits<size_t>::min();
+  for (const auto& interval : variables_intervals) {
+    if (interval.second.first < min_range) {
+      min_range = interval.second.first;
+    }
+    if (interval.second.second > max_range) {
+      max_range = interval.second.second;
+    }
+  }
+
+  {
+    std::ofstream out("variables.dat");
+    out << "set ytics(";
+    bool first = true;
+    int index = 1;
+    for (const auto& interval : variables_intervals) {
+      variable_to_index[interval.first] = index;
+      if (!first) {
+        out << ",";
+      }
+      first = false;
+
+      out << "\"" << interval.first << "\""
+          << " " << variable_to_index[interval.first];
+      ++index;
+    }
+    out << ")";
+  }
+  {
+    std::ofstream out("intervals.dat");
+    for (const auto& interval : variables_intervals) {
+      out << interval.second.first << " " << variable_to_index[interval.first] << "\n";
+      out << interval.second.second << " " << variable_to_index[interval.first] << "\n";
+      out << "\n";
+    }
+  }
+
+  {
+    std::ofstream out("intervals.gpi");
+    out << "set terminal png\n";
+    out << "set xrange[" << min_range << ":" << max_range << "]\n";
+    out << "set yrange["
+        << "0"
+        << ":" << variable_to_index.size() + 3 << "]\n";
+    out << "set style line 2 \\\n";
+    out << "\tlinecolor rgb '#dd181f' \\\n";
+    out << "\tlinetype 1 linewidth 2 \\\n";
+    out << "\tpointtype 5 pointsize 1.5\n";
+    out << "load \""
+           "variables.dat\"\n";
+    out << "plot 'intervals.dat' with linespoints linestyle 2 title ''\n";
+  }
+}
+
 void test_build_instruction_vec_by_hand() {
   instruction_vec program;
   program.push_back(std::make_unique<binary_instruction>(op_var, "a", "int32"));
@@ -1002,6 +1059,7 @@ int main(int argc, char* argv[]) {
     dump_raw_liveness(liveness_sets, std::cout);
     auto variable_intervals = compute_variables_live_ranges(liveness_sets);
     dump_variable_intervals(variable_intervals, std::cout);
+    generate_gnuplot_interval(variable_intervals);
   } else if (command == "--use-def") {
     if (argc < 3) {
       usage();
