@@ -15,6 +15,9 @@
 
 #include "tests.h"
 
+#define ASMJIT_STATIC
+#include <asmjit/asmjit.h>
+
 enum builtin_type {
   type_int8 = 0,
   type_int16,
@@ -334,3 +337,7 @@ instruction_vec optimize(const instruction_vec& i_vec,
                          const variable_interval_map& variables_intervals);
 
 void dump_program(const instruction_vec& i_vec, std::ostream& out);
+
+// Code gen stuff
+void gen(const instruction_vec& i_vec, const asmjit::JitRuntime& rt, asmjit::CodeHolder& code);
+int exec();

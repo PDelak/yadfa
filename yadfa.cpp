@@ -796,3 +796,27 @@ void dump_program(const instruction_vec& i_vec, std::ostream& out) {
   }
 }
 
+void gen(const instruction_vec& i_vec, const asmjit::JitRuntime& rt, asmjit::CodeHolder& code) {
+  using namespace asmjit;
+
+  code.init(rt.environment());
+
+  x86::Assembler a(&code);
+  a.mov(x86::rax, 1);
+  a.ret();
+}
+
+int exec() {
+  typedef int (*Func)(void);
+
+  asmjit::CodeHolder code;
+  asmjit::JitRuntime rt;
+  instruction_vec i_vec;
+  gen(i_vec, rt, code);
+  Func fn;
+  asmjit::Error err = rt.add(&fn, &code);
+  if (err) return -1;
+
+  int result = fn();
+  printf("%d\n", result);
+}
