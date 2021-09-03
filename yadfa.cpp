@@ -937,6 +937,8 @@ void generate_gnuplot_interval(const variable_interval_map& variables_intervals)
     }
   }
 
+
+
   {
     std::ofstream out("intervals.gpi");
     out << "set terminal png\n";
@@ -952,6 +954,17 @@ void generate_gnuplot_interval(const variable_interval_map& variables_intervals)
            "variables.dat\"\n";
     out << "plot 'intervals.dat' with linespoints linestyle 2 title ''\n";
   }
+}
+
+instruction_vec remove_dead_code(const instruction_vec& i_vec, const variable_interval_map& variables_intervals)
+{
+  instruction_vec optimized_i_vec;
+  return optimized_i_vec;
+}
+
+instruction_vec optimize(const instruction_vec& i_vec, const variable_interval_map& variables_intervals)
+{
+  return remove_dead_code(i_vec, variables_intervals);
 }
 
 void test_build_instruction_vec_by_hand() {
@@ -1005,6 +1018,7 @@ void usage() {
   std::cerr << "\tdot-cfg - output of dot context free graph representation" << std::endl;
   std::cerr << "\tuse-def - output of use def sets" << std::endl;
   std::cerr << "\tanalysis (liveness)" << std::endl;
+  std::cerr << "\toptimize" << std::endl;
 }
 
 #define YADFA_ENABLE_TESTS 1
@@ -1072,7 +1086,19 @@ int main(int argc, char* argv[]) {
 
     dump_raw_gen_set(output_gen_set, std::cout);
     dump_raw_kill_set(output_kill_set, std::cout);
-  } else {
+  }
+  else if (command == "--optimize") {
+    if (argc < 3) {
+      usage();
+      return -1;
+    }
+    auto program = parse(argv[2], table);
+    auto cfg = build_cfg(program, table);
+    auto liveness_sets = liveness_analysis(program, cfg);
+    auto variable_intervals = compute_variables_live_ranges(liveness_sets);
+    auto optimized_program = optimize(program, variable_intervals);
+  }
+  else {
     usage();
     return -1;
   }
