@@ -15,6 +15,16 @@
 
 #include "tests.h"
 
+enum builtin_type {
+  type_int8 = 0,
+  type_int16,
+  type_int32,
+  type_uint8,
+  type_uint16,
+  type_uint32,
+  type_float
+};
+
 enum instruction_type {
   op_var = 0,
   op_mov,
