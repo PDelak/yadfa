@@ -4,4 +4,6 @@ project(yadfa)
 set(CMAKE_CXX_STANDARD 14)
 
 add_executable(yadfa
-        yadfa.cpp)
+        yadfa.cpp
+        tests.cpp
+        driver.cpp)

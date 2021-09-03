@@ -4,4 +4,6 @@ mov a 4
 var b int8
 mov b 2
 cmp_eq b a b
+if b 2
 jmp -3
+nop
