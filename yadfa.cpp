@@ -757,7 +757,7 @@ instruction_vec remove_dead_code(const instruction_vec& i_vec,
     // for now just copy function and call statements
     // their behavior should be correctly implemented during
     // building use-def sets
-    else if (instr->type == op_function || instr->type == op_call) {
+    else if (instr->type == op_function || instr->type == op_call || instr->type == op_jmp || instr->type == op_nop || instr->type == op_label) {
       std::unique_ptr<instruction> var_instr(instr->clone());
       optimized_i_vec.push_back(std::move(var_instr));
     } else {
