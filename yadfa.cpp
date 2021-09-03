@@ -611,6 +611,7 @@ void build_use_def_sets(const instruction_vec& i_vec, gen_set& out_gen_set,
             static_cast<binary_instruction*>(i_vec[i_index].get())->arg_1);
         break;
       case op_call:  // do nothing
+      case op_function:
         break;
       case op_add:
       case op_sub:
@@ -983,6 +984,13 @@ instruction_vec remove_dead_code(const instruction_vec& i_vec,
     if (instr->type == op_var) {
       // add all variables decl for now
       auto var_name = static_cast<binary_instruction*>(instr.get())->arg_1;
+      std::unique_ptr<instruction> var_instr(instr->clone());
+      optimized_i_vec.push_back(std::move(var_instr));
+    }
+    // for now just copy function and call statements
+    // their behavior should be correctly implemented during
+    // building use-def sets
+    else if (instr->type == op_function || instr->type == op_call) {
       std::unique_ptr<instruction> var_instr(instr->clone());
       optimized_i_vec.push_back(std::move(var_instr));
     } else {
