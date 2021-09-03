@@ -43,6 +43,7 @@ struct instruction {
   instruction(instruction_type t) : type(t) {}
   virtual std::ostream& dump(std::ostream& out) = 0;
   virtual instruction* clone() = 0;
+  virtual bool is_arg_equal(const std::string& value) const = 0;
   virtual ~instruction() = default;
 
   instruction_type type;
@@ -126,6 +127,9 @@ struct noarg_instruction : public instruction {
   instruction* clone() {
     return new noarg_instruction(*this);
   }
+  bool is_arg_equal(const std::string& value) const {
+    return false;
+  }
 };
 
 struct unary_instruction : public instruction {
@@ -136,6 +140,9 @@ struct unary_instruction : public instruction {
   }
   instruction* clone() {
     return new unary_instruction(*this);
+  }
+  bool is_arg_equal(const std::string& value) const {
+    return arg_1 == value;
   }
 };
 
@@ -150,6 +157,9 @@ struct binary_instruction : public instruction {
   instruction* clone() {
     return new binary_instruction(*this);
   }
+  bool is_arg_equal(const std::string& value) const {
+    return arg_1 == value || arg_2 == value;
+  }
 };
 
 struct three_addr_instruction : public instruction {
@@ -163,6 +173,9 @@ struct three_addr_instruction : public instruction {
   }
   instruction* clone() {
     return new three_addr_instruction(*this);
+  }
+  bool is_arg_equal(const std::string& value) const {
+    return arg_1 == value || arg_2 == value || arg_3 == value;
   }
 };
 
@@ -188,6 +201,12 @@ struct n_addr_instruction : public instruction {
   }
   instruction* clone() {
     return new n_addr_instruction(*this);
+  }
+  bool is_arg_equal(const std::string& value) const {
+    for (const auto& a : args) {
+      if (a == value) return true;
+    }
+    return false;
   }
 };
 
@@ -937,8 +956,6 @@ void generate_gnuplot_interval(const variable_interval_map& variables_intervals)
     }
   }
 
-
-
   {
     std::ofstream out("intervals.gpi");
     out << "set terminal png\n";
@@ -956,15 +973,51 @@ void generate_gnuplot_interval(const variable_interval_map& variables_intervals)
   }
 }
 
-instruction_vec remove_dead_code(const instruction_vec& i_vec, const variable_interval_map& variables_intervals)
-{
+instruction_vec remove_dead_code(const instruction_vec& i_vec,
+                                 const variable_interval_map& variables_intervals) {
   instruction_vec optimized_i_vec;
+  std::set<size_t> added_instructions;
+
+  for (int line_index = 0; line_index != i_vec.size(); ++line_index) {
+    const auto& instr = i_vec[line_index];
+    if (instr->type == op_var) {
+      // add all variables decl for now
+      auto var_name = static_cast<binary_instruction*>(instr.get())->arg_1;
+      std::unique_ptr<instruction> var_instr(instr->clone());
+      optimized_i_vec.push_back(std::move(var_instr));
+    } else {
+      for (const auto& interval : variables_intervals) {
+        if (instr->is_arg_equal(interval.first)) {
+          // check live range
+          if (interval.second.first > line_index || interval.second.second < line_index) {
+            continue;
+          }
+          // intervals for different variable may overlap
+          // prevent that
+          if (added_instructions.find(line_index) != added_instructions.end()) {
+            continue;
+          }
+          std::unique_ptr<instruction> var_instr(instr->clone());
+          optimized_i_vec.push_back(std::move(var_instr));
+          added_instructions.insert(line_index);
+        }
+      }
+    }
+  }
+
   return optimized_i_vec;
 }
 
-instruction_vec optimize(const instruction_vec& i_vec, const variable_interval_map& variables_intervals)
-{
+instruction_vec optimize(const instruction_vec& i_vec,
+                         const variable_interval_map& variables_intervals) {
   return remove_dead_code(i_vec, variables_intervals);
+}
+
+void dump_program(const instruction_vec& i_vec, std::ostream& out) {
+  for (const auto& i : i_vec) {
+    i->dump(out);
+    out << '\n';
+  }
 }
 
 void test_build_instruction_vec_by_hand() {
@@ -1086,8 +1139,7 @@ int main(int argc, char* argv[]) {
 
     dump_raw_gen_set(output_gen_set, std::cout);
     dump_raw_kill_set(output_kill_set, std::cout);
-  }
-  else if (command == "--optimize") {
+  } else if (command == "--optimize") {
     if (argc < 3) {
       usage();
       return -1;
@@ -1097,8 +1149,8 @@ int main(int argc, char* argv[]) {
     auto liveness_sets = liveness_analysis(program, cfg);
     auto variable_intervals = compute_variables_live_ranges(liveness_sets);
     auto optimized_program = optimize(program, variable_intervals);
-  }
-  else {
+    dump_program(optimized_program, std::cout);
+  } else {
     usage();
     return -1;
   }
