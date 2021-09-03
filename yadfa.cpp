@@ -754,10 +754,11 @@ instruction_vec remove_dead_code(const instruction_vec& i_vec,
       std::unique_ptr<instruction> var_instr(instr->clone());
       optimized_i_vec.push_back(std::move(var_instr));
     }
-    // for now just copy function and call statements
+    // for now just copy function, nop, jmp, label and call statements
     // their behavior should be correctly implemented during
     // building use-def sets
-    else if (instr->type == op_function || instr->type == op_call || instr->type == op_jmp || instr->type == op_nop || instr->type == op_label) {
+    else if (instr->type == op_function || instr->type == op_call || instr->type == op_jmp ||
+             instr->type == op_nop || instr->type == op_label) {
       std::unique_ptr<instruction> var_instr(instr->clone());
       optimized_i_vec.push_back(std::move(var_instr));
     } else {
