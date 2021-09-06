@@ -796,13 +796,19 @@ void dump_program(const instruction_vec& i_vec, std::ostream& out) {
   }
 }
 
-void gen(const instruction_vec& i_vec, const asmjit::JitRuntime& rt, asmjit::CodeHolder& code) {
+void gen_x64(const instruction_vec& i_vec, const asmjit::JitRuntime& rt, asmjit::CodeHolder& code) {
   using namespace asmjit;
 
   code.init(rt.environment());
-
+  int x = 5;
   x86::Assembler a(&code);
-  a.mov(x86::rax, 1);
+  // allocate memory
+  a.sub(x86::rsp,4);
+  a.mov(x86::dword_ptr(x86::rsp, -4), x);
+  a.mov(x86::rax, x86::dword_ptr(x86::rsp, -4));
+  a.add(x86::rax, 4);
+  // deallocate
+  a.add(x86::rsp, 4);
   a.ret();
 }
 
@@ -812,7 +818,7 @@ int exec() {
   asmjit::CodeHolder code;
   asmjit::JitRuntime rt;
   instruction_vec i_vec;
-  gen(i_vec, rt, code);
+  gen_x64(i_vec, rt, code);
   Func fn;
   asmjit::Error err = rt.add(&fn, &code);
   if (err) return -1;
