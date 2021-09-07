@@ -832,10 +832,10 @@ void gen_x64(const instruction_vec& i_vec, const asmjit::JitRuntime& rt, asmjit:
       auto var_offset = var_index * (-variable_size);
       // TODO check if that's number literal
       a.mov(x86::dword_ptr(x86::rsp, var_offset), std::stoi(var_value));
-      a.mov(x86::rax, x86::dword_ptr(x86::rsp, var_offset));
     }
     if (instr->type == op_add) {
       // TODO 5 is placeholder for now
+      a.mov(x86::rax, 3);
       a.add(x86::rax, 5);
     }
   }
