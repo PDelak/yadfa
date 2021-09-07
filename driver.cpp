@@ -9,6 +9,7 @@ void usage() {
   std::cerr << "\tuse-def - output of use def sets" << std::endl;
   std::cerr << "\tanalysis (liveness)" << std::endl;
   std::cerr << "\toptimize" << std::endl;
+  std::cerr << "\texec" << std::endl;
 }
 
 #define YADFA_ENABLE_TESTS 1
@@ -85,10 +86,12 @@ int main(int argc, char* argv[]) {
     auto variable_intervals = compute_variables_live_ranges(liveness_sets);
     auto optimized_program = optimize(program, variable_intervals);
     dump_program(optimized_program, std::cout);
+  } else if (command == "--exec") {
+    auto program = parse(argv[2], table);
+    exec(program);
   } else {
     usage();
     return -1;
   }
-  exec();
   return 0;
 }

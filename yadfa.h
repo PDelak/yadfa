@@ -340,4 +340,4 @@ void dump_program(const instruction_vec& i_vec, std::ostream& out);
 
 // Code gen stuff
 void gen(const instruction_vec& i_vec, const asmjit::JitRuntime& rt, asmjit::CodeHolder& code);
-int exec();
+int exec(const instruction_vec &i_vec);

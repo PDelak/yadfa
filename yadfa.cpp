@@ -798,26 +798,46 @@ void dump_program(const instruction_vec& i_vec, std::ostream& out) {
 
 void gen_x64(const instruction_vec& i_vec, const asmjit::JitRuntime& rt, asmjit::CodeHolder& code) {
   using namespace asmjit;
+  size_t num_variables = 0;
+  for (const auto &intr : i_vec) {
+    if (intr->type == op_var) {
+      ++num_variables;
+    }
+  }
+  // hardcoded for now
+  constexpr size_t variable_size = 4;
+  const size_t allocated_mem = num_variables * variable_size;
 
   code.init(rt.environment());
   int x = 5;
   x86::Assembler a(&code);
   // allocate memory
-  a.sub(x86::rsp,4);
-  a.mov(x86::dword_ptr(x86::rsp, -4), x);
-  a.mov(x86::rax, x86::dword_ptr(x86::rsp, -4));
-  a.add(x86::rax, 4);
+  a.push(x86::rbp);
+  a.mov(x86::rbp, x86::rsp);
+  a.sub(x86::rsp, allocated_mem);
+
+  for (const auto &instr : i_vec) {
+    if (instr->type == op_mov) {
+      a.mov(x86::dword_ptr(x86::rsp, -4), x);
+      a.mov(x86::rax, x86::dword_ptr(x86::rsp, -4));
+    }
+    if (instr->type == op_add) {
+      a.add(x86::rax, 4);
+    }
+  }
+
   // deallocate
-  a.add(x86::rsp, 4);
+  a.add(x86::rsp, allocated_mem);
+  a.pop(x86::rbp);
   a.ret();
 }
 
-int exec() {
+int exec(const instruction_vec &i_vec) {
   typedef int (*Func)(void);
 
   asmjit::CodeHolder code;
   asmjit::JitRuntime rt;
-  instruction_vec i_vec;
+
   gen_x64(i_vec, rt, code);
   Func fn;
   asmjit::Error err = rt.add(&fn, &code);
@@ -825,4 +845,14 @@ int exec() {
 
   int result = fn();
   printf("%d\n", result);
+  return 0;
+}
+
+void dump_x86_64(const asmjit::CodeHolder &code) {
+  using namespace asmjit;
+  CodeBuffer &buffer = code.textSection()->buffer();
+
+  for (size_t i = 0; i < buffer.size(); i++)
+    printf("%02X", buffer[i]);
+  std::cout << '\n';
 }
