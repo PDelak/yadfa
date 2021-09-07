@@ -798,13 +798,21 @@ void dump_program(const instruction_vec& i_vec, std::ostream& out) {
 
 void gen_x64(const instruction_vec& i_vec, const asmjit::JitRuntime& rt, asmjit::CodeHolder& code) {
   using namespace asmjit;
+  std::map<std::string, size_t> variables_indexes;
   size_t num_variables = 0;
-  for (const auto &intr : i_vec) {
-    if (intr->type == op_var) {
+  for (size_t i_index = 0; i_index != i_vec.size(); ++i_index) {
+    const auto &instr = i_vec[i_index];
+    if (instr->type == op_var) {
       ++num_variables;
+      auto var_name =
+          static_cast<binary_instruction *>(i_vec[i_index].get())->arg_1;
+      auto var_type =
+          static_cast<binary_instruction *>(i_vec[i_index].get())->arg_2;
+
+      variables_indexes[var_name] = num_variables;
     }
   }
-  // hardcoded for now
+  // TODO hardcoded for now, only 32 bit values
   constexpr size_t variable_size = 4;
   const size_t allocated_mem = num_variables * variable_size;
 
@@ -818,11 +826,17 @@ void gen_x64(const instruction_vec& i_vec, const asmjit::JitRuntime& rt, asmjit:
 
   for (const auto &instr : i_vec) {
     if (instr->type == op_mov) {
-      a.mov(x86::dword_ptr(x86::rsp, -4), x);
-      a.mov(x86::rax, x86::dword_ptr(x86::rsp, -4));
+      auto var_name = static_cast<binary_instruction *>(instr.get())->arg_1;
+      auto var_value = static_cast<binary_instruction *>(instr.get())->arg_2;
+      auto var_index = variables_indexes[var_name];
+      auto var_offset = var_index * (-variable_size);
+      // TODO check if that's number literal
+      a.mov(x86::dword_ptr(x86::rsp, var_offset), std::stoi(var_value));
+      a.mov(x86::rax, x86::dword_ptr(x86::rsp, var_offset));
     }
     if (instr->type == op_add) {
-      a.add(x86::rax, 4);
+      // TODO 5 is placeholder for now
+      a.add(x86::rax, 5);
     }
   }
 
