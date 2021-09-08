@@ -831,7 +831,7 @@ void gen_x64(const instruction_vec& i_vec, const asmjit::JitRuntime& rt, asmjit:
       auto var_index = variables_indexes[var_name];
       auto var_offset = var_index * (-variable_size);
       // TODO check if that's number literal
-      a.mov(x86::dword_ptr(x86::rsp, var_offset), std::stoi(var_value));
+      a.mov(x86::dword_ptr(x86::rbp, var_offset), std::stoi(var_value));
     }
     if (instr->type == op_add) {
       auto arg_2 = static_cast<three_addr_instruction *>(instr.get())->arg_2;
@@ -841,8 +841,8 @@ void gen_x64(const instruction_vec& i_vec, const asmjit::JitRuntime& rt, asmjit:
       auto arg_3_index = variables_indexes[arg_3];
       auto arg_2_offset = arg_2_index * (-variable_size);
       auto arg_3_offset = arg_3_index * (-variable_size);
-      a.mov(x86::rax, x86::dword_ptr(x86::rsp, arg_2_offset));
-      a.add(x86::rax, x86::dword_ptr(x86::rsp, arg_3_offset));
+      a.mov(x86::rax, x86::dword_ptr(x86::rbp, arg_2_offset));
+      a.add(x86::rax, x86::dword_ptr(x86::rbp, arg_3_offset));
     }
     if (instr->type == op_sub) {
       auto arg_2 = static_cast<three_addr_instruction *>(instr.get())->arg_2;
@@ -852,8 +852,15 @@ void gen_x64(const instruction_vec& i_vec, const asmjit::JitRuntime& rt, asmjit:
       auto arg_3_index = variables_indexes[arg_3];
       auto arg_2_offset = arg_2_index * (-variable_size);
       auto arg_3_offset = arg_3_index * (-variable_size);
-      a.mov(x86::rax, x86::dword_ptr(x86::rsp, arg_2_offset));
-      a.sub(x86::rax, x86::dword_ptr(x86::rsp, arg_3_offset));
+      a.mov(x86::rax, x86::dword_ptr(x86::rbp, arg_2_offset));
+      a.sub(x86::rax, x86::dword_ptr(x86::rbp, arg_3_offset));
+    }
+    if (instr->type == op_push) {
+      auto arg = static_cast<unary_instruction *>(instr.get())->arg_1;
+      auto arg_index = variables_indexes[arg];
+      auto arg_offset = arg_index * (-variable_size);
+      a.mov(x86::rax, x86::dword_ptr(x86::rbp, arg_offset));
+      a.push(x86::rax);
     }
   }
 
