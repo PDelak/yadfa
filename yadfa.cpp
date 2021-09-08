@@ -844,6 +844,17 @@ void gen_x64(const instruction_vec& i_vec, const asmjit::JitRuntime& rt, asmjit:
       a.mov(x86::rax, x86::dword_ptr(x86::rsp, arg_2_offset));
       a.add(x86::rax, x86::dword_ptr(x86::rsp, arg_3_offset));
     }
+    if (instr->type == op_sub) {
+      auto arg_2 = static_cast<three_addr_instruction *>(instr.get())->arg_2;
+      auto arg_3 = static_cast<three_addr_instruction *>(instr.get())->arg_3;
+      // TODO assuming args are lvalues
+      auto arg_2_index = variables_indexes[arg_2];
+      auto arg_3_index = variables_indexes[arg_3];
+      auto arg_2_offset = arg_2_index * (-variable_size);
+      auto arg_3_offset = arg_3_index * (-variable_size);
+      a.mov(x86::rax, x86::dword_ptr(x86::rsp, arg_2_offset));
+      a.sub(x86::rax, x86::dword_ptr(x86::rsp, arg_3_offset));
+    }
   }
 
   // deallocate
