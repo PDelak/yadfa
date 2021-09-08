@@ -56,6 +56,7 @@ add_executable(yadfa
         ./asmjit/core/environment.cpp
 
         yadfa.cpp
+        genx86_64.cpp
         tests.cpp
         driver.cpp)
 
