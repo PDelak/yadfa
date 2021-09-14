@@ -128,6 +128,22 @@ void parse_sub(instruction_vec& i_vec, scanning_state& state) {
   i_vec.push_back(std::make_unique<three_addr_instruction>(op_sub, arg_1, arg_2, arg_3));
 }
 
+void parse_mul(instruction_vec &i_vec, scanning_state &state) {
+  auto arg_1 = getNextToken(state);
+  auto arg_2 = getNextToken(state);
+  auto arg_3 = getNextToken(state);
+  i_vec.push_back(
+      std::make_unique<three_addr_instruction>(op_mul, arg_1, arg_2, arg_3));
+}
+
+void parse_div(instruction_vec &i_vec, scanning_state &state) {
+  auto arg_1 = getNextToken(state);
+  auto arg_2 = getNextToken(state);
+  auto arg_3 = getNextToken(state);
+  i_vec.push_back(
+      std::make_unique<three_addr_instruction>(op_div, arg_1, arg_2, arg_3));
+}
+
 void parse_new(instruction_vec& i_vec, scanning_state& state) {
   auto arg = getNextToken(state);
   i_vec.push_back(std::make_unique<unary_instruction>(op_new, arg));
@@ -250,6 +266,10 @@ instruction_vec parse(const std::string& filename, label_table& table) {
       parse_add(program, state);
     } else if (token == "sub") {
       parse_sub(program, state);
+    } else if (token == "mul") {
+      parse_mul(program, state);
+    } else if (token == "div") {
+      parse_div(program, state);
     } else if (token == "new") {
       parse_new(program, state);
     } else if (token == "delete") {

@@ -38,15 +38,17 @@ enum instruction_type {
   op_call,
   op_add,
   op_sub,
+  op_mul,
+  op_div,
   op_ret,
   op_new,
   op_delete,
-  op_cmp_eq,   // ==
-  op_cmp_neq,  // !=
-  op_cmp_gt,   // >
-  op_cmp_lt,   // <
-  op_cmp_lte,  // <=
-  op_cmp_gte,  // >=
+  op_cmp_eq,  // ==
+  op_cmp_neq, // !=
+  op_cmp_gt,  // >
+  op_cmp_lt,  // <
+  op_cmp_lte, // <=
+  op_cmp_gte, // >=
   op_label,
   op_function,
   op_nop
@@ -98,6 +100,12 @@ struct instruction {
         break;
       case op_sub:
         out << std::string("sub");
+        break;
+      case op_mul:
+        out << std::string("mul");
+        break;
+      case op_div:
+        out << std::string("div");
         break;
       case op_new:
         out << std::string("new");
@@ -263,6 +271,8 @@ void parse_call(instruction_vec& i_vec, scanning_state& state);
 void parse_ret(instruction_vec& i_vec, scanning_state& state);
 void parse_add(instruction_vec& i_vec, scanning_state& state);
 void parse_sub(instruction_vec& i_vec, scanning_state& state);
+void parse_mul(instruction_vec &i_vec, scanning_state &state);
+void parse_div(instruction_vec &i_vec, scanning_state &state);
 void parse_new(instruction_vec& i_vec, scanning_state& state);
 void parse_delete(instruction_vec& i_vec, scanning_state& state);
 void parse_cmp_eq(instruction_vec& i_vec, scanning_state& state);
