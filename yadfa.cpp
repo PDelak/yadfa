@@ -402,6 +402,8 @@ void build_use_def_sets(const instruction_vec& i_vec, gen_set& out_gen_set,
         break;
       case op_add:
       case op_sub:
+      case op_mul:
+      case op_div:
         out_kill_set[i_index].push_back(
             static_cast<three_addr_instruction*>(i_vec[i_index].get())->arg_1);
         out_gen_set[i_index].push_back(

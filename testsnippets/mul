@@ -1,0 +1,6 @@
+var a int32
+var b int32
+var c int32
+mov a 4
+mov b 4
+mul c a b
