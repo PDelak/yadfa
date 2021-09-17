@@ -1,6 +1,6 @@
 var a int32
 var b int32
 var c int32
-mov a 4
-mov b 2
+mov a 20
+mov b 5
 div c a b
