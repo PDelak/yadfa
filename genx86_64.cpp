@@ -81,10 +81,9 @@ void gen_x64(const instruction_vec &i_vec, const asmjit::JitRuntime &rt,
       auto arg_3_index = variables_indexes[arg_3];
       auto arg_2_offset = arg_2_index * (-variable_size);
       auto arg_3_offset = arg_3_index * (-variable_size);
-      a.mov(x86::eax, x86::dword_ptr(x86::rbp, arg_2_offset));
+      a.mov(x86::rax, x86::qword_ptr(x86::rbp, arg_2_offset));
       a.cdq();
-      a.mov(x86::ebx, x86::dword_ptr(x86::rbp, arg_3_offset));
-      a.idiv(x86::ebx);
+      a.idiv(x86::dword_ptr(x86::rbp, arg_3_offset));
     }
     if (instr->type == op_push) {
       auto arg = static_cast<unary_instruction *>(instr.get())->arg_1;
