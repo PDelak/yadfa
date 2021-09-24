@@ -168,17 +168,18 @@ void gen_x64(const instruction_vec &i_vec, const asmjit::JitRuntime &rt,
       auto arg_1_offset = arg_1_index * (-variable_size);
       auto arg_2_offset = arg_2_index * (-variable_size);
       auto arg_3_offset = arg_3_index * (-variable_size);
-      a.mov(x86::rax, x86::qword_ptr(x86::rbp, arg_2_offset));
-      a.cmp(x86::rax, x86::qword_ptr(x86::rbp, arg_3_offset));
+      a.mov(x86::eax, x86::dword_ptr(x86::rbp, arg_2_offset));
+      a.cmp(x86::eax, x86::dword_ptr(x86::rbp, arg_3_offset));
       auto false_label = a.newLabel();
-      auto true_label = a.newLabel();
+      auto end_label = a.newLabel();
       a.jne(false_label);
-      a.bind(true_label);
-      a.mov(x86::rax, 1);
-      a.mov(x86::qword_ptr(x86::rbp, arg_1_offset), x86::rax);
+      a.mov(x86::eax, 1);
+      a.mov(x86::dword_ptr(x86::rbp, arg_1_offset), x86::eax);
+      a.jmp(end_label);
       a.bind(false_label);
-      a.mov(x86::rax, 0);
-      a.mov(x86::qword_ptr(x86::rbp, arg_1_offset), x86::rax);
+      a.mov(x86::eax, 0);
+      a.mov(x86::dword_ptr(x86::rbp, arg_1_offset), x86::eax);
+      a.bind(end_label);
     }
     //    op_cmp_neq, // !=
     if (instr->type == op_cmp_neq) {
