@@ -153,6 +153,48 @@ void gen_x64(const instruction_vec &i_vec, const asmjit::JitRuntime &rt,
       }
       a.jmp(label_it->second);
     }
+    //    op_cmp_eq,  // ==
+    if (instr->type == op_cmp_eq) {
+      // do cmp
+      // do jne
+      // jump to set result
+      auto arg_1 = static_cast<three_addr_instruction *>(instr.get())->arg_1;
+      auto arg_2 = static_cast<three_addr_instruction *>(instr.get())->arg_2;
+      auto arg_3 = static_cast<three_addr_instruction *>(instr.get())->arg_3;
+      // TODO assuming args are lvalues
+      auto arg_1_index = variables_indexes[arg_1];
+      auto arg_2_index = variables_indexes[arg_2];
+      auto arg_3_index = variables_indexes[arg_3];
+      auto arg_1_offset = arg_1_index * (-variable_size);
+      auto arg_2_offset = arg_2_index * (-variable_size);
+      auto arg_3_offset = arg_3_index * (-variable_size);
+      a.mov(x86::rax, x86::qword_ptr(x86::rbp, arg_2_offset));
+      a.cmp(x86::rax, x86::qword_ptr(x86::rbp, arg_3_offset));
+      auto false_label = a.newLabel();
+      auto true_label = a.newLabel();
+      a.jne(false_label);
+      a.bind(true_label);
+      a.mov(x86::rax, 1);
+      a.mov(x86::qword_ptr(x86::rbp, arg_1_offset), x86::rax);
+      a.bind(false_label);
+      a.mov(x86::rax, 0);
+      a.mov(x86::qword_ptr(x86::rbp, arg_1_offset), x86::rax);
+    }
+    //    op_cmp_neq, // !=
+    if (instr->type == op_cmp_neq) {
+    }
+    //    op_cmp_gt,  // >
+    if (instr->type == op_cmp_gt) {
+    }
+    //    op_cmp_lt,  // <
+    if (instr->type == op_cmp_lt) {
+    }
+    //        op_cmp_lte, // <=
+    if (instr->type == op_cmp_lte) {
+    }
+    //        op_cmp_gte, // >=
+    if (instr->type == op_cmp_gte) {
+    }
 
     if (instr->type == op_nop) {
       a.nop();
