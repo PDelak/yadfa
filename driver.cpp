@@ -93,8 +93,7 @@ int main(int argc, char* argv[]) {
   } else if (command == "--dump-x86") {
     auto program = parse(argv[2], table);
     dump_x86_64(program);
-  }
-  else {
+  } else {
     usage();
     return -1;
   }

@@ -1,8 +1,7 @@
 #include "yadfa.h"
 
-struct code_generation_error : public std::runtime_error
-{
-  code_generation_error(const char* what) : std::runtime_error(what) {}
+struct code_generation_error : public std::runtime_error {
+  code_generation_error(const char *what) : std::runtime_error(what) {}
 };
 
 void dump_x86_64(const asmjit::CodeHolder &code) {
@@ -129,8 +128,14 @@ void gen_x64(const instruction_vec &i_vec, const asmjit::JitRuntime &rt,
       auto arg = static_cast<unary_instruction *>(instr.get())->arg_1;
       auto arg_index = variables_indexes[arg];
       auto arg_offset = arg_index * (-variable_size);
-      a.mov(x86::rax, x86::dword_ptr(x86::rbp, arg_offset));
-      a.push(x86::rax);
+      a.push(x86::dword_ptr(x86::rbp, arg_offset));
+    }
+    if (instr->type == op_pop) {
+      // TODO assuming args are lvalues
+      auto arg = static_cast<unary_instruction *>(instr.get())->arg_1;
+      auto arg_index = variables_indexes[arg];
+      auto arg_offset = arg_index * (-variable_size);
+      a.pop(x86::dword_ptr(x86::rbp, arg_offset));
     }
     if (instr->type == op_jmp) {
       // TODO handle lvalues
@@ -186,4 +191,3 @@ void dump_x86_64(const instruction_vec &i_vec) {
   gen_x64(i_vec, rt, code);
   dump_x86_64(code);
 }
-
