@@ -10,6 +10,7 @@ void usage() {
   std::cerr << "\tanalysis (liveness)" << std::endl;
   std::cerr << "\toptimize" << std::endl;
   std::cerr << "\texec" << std::endl;
+  std::cerr << "\tdump-x86" << std::endl;
 }
 
 #define YADFA_ENABLE_TESTS 1
@@ -89,7 +90,11 @@ int main(int argc, char* argv[]) {
   } else if (command == "--exec") {
     auto program = parse(argv[2], table);
     exec(program);
-  } else {
+  } else if (command == "--dump-x86") {
+    auto program = parse(argv[2], table);
+    dump_x86_64(program);
+  }
+  else {
     usage();
     return -1;
   }
