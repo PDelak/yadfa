@@ -153,43 +153,49 @@ void gen_x64(const instruction_vec &i_vec, const asmjit::JitRuntime &rt,
       }
       a.jmp(label_it->second);
     }
-    switch (instr->type)
-    {
-      case op_cmp_eq:
-      case op_cmp_neq:
-      case op_cmp_gt:
-      case op_cmp_lt:
-      case op_cmp_lte:
-      case op_cmp_gte:
-        auto arg_1 = static_cast<three_addr_instruction *>(instr.get())->arg_1;
-        auto arg_2 = static_cast<three_addr_instruction *>(instr.get())->arg_2;
-        auto arg_3 = static_cast<three_addr_instruction *>(instr.get())->arg_3;
-        // TODO assuming args are lvalues
-        auto arg_1_index = variables_indexes[arg_1];
-        auto arg_2_index = variables_indexes[arg_2];
-        auto arg_3_index = variables_indexes[arg_3];
-        auto arg_1_offset = arg_1_index * (-variable_size);
-        auto arg_2_offset = arg_2_index * (-variable_size);
-        auto arg_3_offset = arg_3_index * (-variable_size);
-        a.mov(x86::eax, x86::dword_ptr(x86::rbp, arg_2_offset));
-        a.cmp(x86::eax, x86::dword_ptr(x86::rbp, arg_3_offset));
-        auto false_label = a.newLabel();
-        auto end_label = a.newLabel();
-        if (instr->type == op_cmp_eq) {
-          a.jne(false_label);
-        }
-        else {
-          throw code_generation_error("unhandled operation");
-        }
-        a.mov(x86::eax, 1);
-        a.mov(x86::dword_ptr(x86::rbp, arg_1_offset), x86::eax);
-        a.jmp(end_label);
-        a.bind(false_label);
-        a.mov(x86::eax, 0);
-        a.mov(x86::dword_ptr(x86::rbp, arg_1_offset), x86::eax);
-        a.bind(end_label);
+    switch (instr->type) {
+    case op_cmp_eq:
+    case op_cmp_neq:
+    case op_cmp_gt:
+    case op_cmp_lt:
+    case op_cmp_lte:
+    case op_cmp_gte:
+      auto arg_1 = static_cast<three_addr_instruction *>(instr.get())->arg_1;
+      auto arg_2 = static_cast<three_addr_instruction *>(instr.get())->arg_2;
+      auto arg_3 = static_cast<three_addr_instruction *>(instr.get())->arg_3;
+      // TODO assuming args are lvalues
+      auto arg_1_index = variables_indexes[arg_1];
+      auto arg_2_index = variables_indexes[arg_2];
+      auto arg_3_index = variables_indexes[arg_3];
+      auto arg_1_offset = arg_1_index * (-variable_size);
+      auto arg_2_offset = arg_2_index * (-variable_size);
+      auto arg_3_offset = arg_3_index * (-variable_size);
+      a.mov(x86::eax, x86::dword_ptr(x86::rbp, arg_2_offset));
+      a.cmp(x86::eax, x86::dword_ptr(x86::rbp, arg_3_offset));
+      auto false_label = a.newLabel();
+      auto end_label = a.newLabel();
+      if (instr->type == op_cmp_eq) {
+        a.jne(false_label);
+      } else if (instr->type == op_cmp_neq) {
+        a.je(false_label);
+      } else if (instr->type == op_cmp_gt) {
+        a.jng(false_label);
+      } else if (instr->type == op_cmp_lt) {
+        a.jnl(false_label);
+      } else if (instr->type == op_cmp_lte) {
+        a.jnle(false_label);
+      } else if (instr->type == op_cmp_gte) {
+        a.jnge(false_label);
+      }
+      a.mov(x86::eax, 1);
+      a.mov(x86::dword_ptr(x86::rbp, arg_1_offset), x86::eax);
+      a.jmp(end_label);
+      a.bind(false_label);
+      a.mov(x86::eax, 0);
+      a.mov(x86::dword_ptr(x86::rbp, arg_1_offset), x86::eax);
+      a.bind(end_label);
 
-        break;
+      break;
     }
 
     if (instr->type == op_nop) {
