@@ -198,7 +198,28 @@ void gen_x64(const instruction_vec &i_vec, const asmjit::JitRuntime &rt,
       break;
     }
     if (instr->type == op_if) {
-
+      auto false_label = a.newLabel();
+      auto arg = static_cast<binary_instruction *>(instr.get())->arg_1;
+      auto arg_index = variables_indexes[arg];
+      auto arg_offset = arg_index * (-variable_size);
+      auto offset = static_cast<binary_instruction *>(instr.get())->arg_2;
+      a.mov(x86::eax, x86::dword_ptr(x86::rbp, arg_offset));
+      a.cmp(x86::eax, 0);
+      if (instr->type == op_cmp_gt) {
+        a.jng(false_label);
+      }
+      // only if digit for now
+      auto jmp_offset = std::stoi(offset);
+      if (jmp_offset > 0) {
+        jmp_offset += 1;
+      }
+      auto next_instruction_index = index + jmp_offset;
+      auto label_it = label_per_instruction.find(next_instruction_index);
+      if (label_it == label_per_instruction.end()) {
+        code_generation_error("instruction is out of range");
+      }
+      a.jmp(label_it->second);
+      a.bind(false_label);
     }
     if (instr->type == op_nop) {
       a.nop();

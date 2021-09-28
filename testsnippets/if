@@ -1,0 +1,8 @@
+var a int32
+var b int32
+var c int32
+mov c 0
+if c 1
+mov a 6
+mov a 7
+
