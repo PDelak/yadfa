@@ -58,7 +58,12 @@ void gen_x64(const instruction_vec &i_vec, const asmjit::JitRuntime &rt,
       auto var_index = variables_indexes[var_name];
       auto var_offset = var_index * (-variable_size);
       // TODO check if that's number literal
-      a.mov(x86::dword_ptr(x86::rbp, var_offset), std::stoi(var_value));
+      // below two lines can be replaced by last one
+      // it's implemented for now this way for debugging purposes
+      // just to leave most recent value in rax register
+      a.mov(x86::eax, std::stoi(var_value));
+      a.mov(x86::dword_ptr(x86::rbp, var_offset), x86::eax);
+      //a.mov(x86::dword_ptr(x86::rbp, var_offset), std::stoi(var_value));
     }
     if (instr->type == op_add) {
       auto arg_1 = static_cast<three_addr_instruction *>(instr.get())->arg_1;
@@ -203,11 +208,9 @@ void gen_x64(const instruction_vec &i_vec, const asmjit::JitRuntime &rt,
       auto arg_index = variables_indexes[arg];
       auto arg_offset = arg_index * (-variable_size);
       auto offset = static_cast<binary_instruction *>(instr.get())->arg_2;
-      a.mov(x86::eax, x86::dword_ptr(x86::rbp, arg_offset));
-      a.cmp(x86::eax, 0);
-      if (instr->type == op_cmp_gt) {
-        a.jng(false_label);
-      }
+      a.mov(x86::ebx, x86::dword_ptr(x86::rbp, arg_offset));
+      a.cmp(x86::ebx, 0);
+      a.jng(false_label);
       // only if digit for now
       auto jmp_offset = std::stoi(offset);
       if (jmp_offset > 0) {
