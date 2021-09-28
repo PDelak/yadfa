@@ -63,7 +63,7 @@ void gen_x64(const instruction_vec &i_vec, const asmjit::JitRuntime &rt,
       // just to leave most recent value in rax register
       a.mov(x86::eax, std::stoi(var_value));
       a.mov(x86::dword_ptr(x86::rbp, var_offset), x86::eax);
-      //a.mov(x86::dword_ptr(x86::rbp, var_offset), std::stoi(var_value));
+      // a.mov(x86::dword_ptr(x86::rbp, var_offset), std::stoi(var_value));
     }
     if (instr->type == op_add) {
       auto arg_1 = static_cast<three_addr_instruction *>(instr.get())->arg_1;
