@@ -252,6 +252,7 @@ struct scanning_state {
   bool eof() const {
     return current == end;
   }
+  size_t line_number = 1;
 };
 
 bool isbracket(char c);

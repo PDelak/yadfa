@@ -21,6 +21,16 @@ struct parse_exception : public std::runtime_error {
 };
 
 std::string getNextToken(scanning_state& state) {
+  if (!state.eof() && *state.current == '\n') {
+    ++state.line_number;
+    auto token_end = state.current + 1;
+    state.current = token_end;
+  }
+  if (!state.eof() && *state.current == '\r') {
+    ++state.line_number;
+    auto token_end = state.current + 2;
+    state.current = token_end;
+  }
   if (!state.eof() && isspace(*state.current)) {
     auto end = std::find_if_not(state.current, state.end, isspace);
     state.current = end;
@@ -297,7 +307,8 @@ instruction_vec parse(const std::string& filename, label_table& table) {
     } else if (token == "nop") {
       parse_nop(program, state, table);
     } else if (!state.eof()) {
-      throw parse_exception("undefined opcode : " + token);
+      throw parse_exception("undefined opcode : " + token +
+                            " in line : " + std::to_string(state.line_number));
     }
   } while (!state.eof());
   return program;
