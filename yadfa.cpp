@@ -16,6 +16,10 @@ bool iscolon(char c) {
   return c == ':';
 }
 
+struct parse_exception : public std::runtime_error {
+  parse_exception(const std::string& what) : std::runtime_error(what) {}
+};
+
 std::string getNextToken(scanning_state& state) {
   if (!state.eof() && isspace(*state.current)) {
     auto end = std::find_if_not(state.current, state.end, isspace);
@@ -292,6 +296,8 @@ instruction_vec parse(const std::string& filename, label_table& table) {
       parse_function(program, state, table);
     } else if (token == "nop") {
       parse_nop(program, state, table);
+    } else if (!state.eof()){
+      throw parse_exception("undefined opcode : " + token);
     }
   } while (!state.eof());
   return program;

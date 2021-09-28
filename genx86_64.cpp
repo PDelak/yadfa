@@ -118,7 +118,7 @@ void gen_x64(const instruction_vec &i_vec, const asmjit::JitRuntime &rt,
       auto arg_1_offset = arg_1_index * (-variable_size);
       auto arg_2_offset = arg_2_index * (-variable_size);
       auto arg_3_offset = arg_3_index * (-variable_size);
-      a.mov(x86::rax, x86::qword_ptr(x86::rbp, arg_2_offset));
+      a.mov(x86::rax, x86::dword_ptr(x86::rbp, arg_2_offset));
       a.cdq();
       a.idiv(x86::dword_ptr(x86::rbp, arg_3_offset));
       a.mov(x86::dword_ptr(x86::rbp, arg_1_offset), x86::rax);
@@ -197,7 +197,9 @@ void gen_x64(const instruction_vec &i_vec, const asmjit::JitRuntime &rt,
 
       break;
     }
+    if (instr->type == op_if) {
 
+    }
     if (instr->type == op_nop) {
       a.nop();
     }
