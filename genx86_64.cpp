@@ -78,7 +78,7 @@ void gen_x64(const instruction_vec &i_vec, const asmjit::JitRuntime &rt,
       auto arg_3_offset = arg_3_index * (-variable_size);
       a.mov(x86::rax, x86::dword_ptr(x86::rbp, arg_2_offset));
       a.add(x86::rax, x86::dword_ptr(x86::rbp, arg_3_offset));
-      a.mov(x86::dword_ptr(x86::rbp, arg_1_offset), x86::rax);
+      a.mov(x86::dword_ptr(x86::rbp, arg_1_offset), x86::eax);
     }
     if (instr->type == op_sub) {
       auto arg_1 = static_cast<three_addr_instruction *>(instr.get())->arg_1;
@@ -93,7 +93,7 @@ void gen_x64(const instruction_vec &i_vec, const asmjit::JitRuntime &rt,
       auto arg_3_offset = arg_3_index * (-variable_size);
       a.mov(x86::rax, x86::dword_ptr(x86::rbp, arg_2_offset));
       a.sub(x86::rax, x86::dword_ptr(x86::rbp, arg_3_offset));
-      a.mov(x86::dword_ptr(x86::rbp, arg_1_offset), x86::rax);
+      a.mov(x86::dword_ptr(x86::rbp, arg_1_offset), x86::eax);
     }
     if (instr->type == op_mul) {
       auto arg_1 = static_cast<three_addr_instruction *>(instr.get())->arg_1;
@@ -109,7 +109,7 @@ void gen_x64(const instruction_vec &i_vec, const asmjit::JitRuntime &rt,
       a.mov(x86::rax, x86::dword_ptr(x86::rbp, arg_2_offset));
       a.mov(x86::rcx, x86::dword_ptr(x86::rbp, arg_3_offset));
       a.mul(x86::rcx);
-      a.mov(x86::dword_ptr(x86::rbp, arg_1_offset), x86::rax);
+      a.mov(x86::dword_ptr(x86::rbp, arg_1_offset), x86::eax);
     }
 
     if (instr->type == op_div) {
@@ -126,7 +126,7 @@ void gen_x64(const instruction_vec &i_vec, const asmjit::JitRuntime &rt,
       a.mov(x86::rax, x86::dword_ptr(x86::rbp, arg_2_offset));
       a.cdq();
       a.idiv(x86::dword_ptr(x86::rbp, arg_3_offset));
-      a.mov(x86::dword_ptr(x86::rbp, arg_1_offset), x86::rax);
+      a.mov(x86::dword_ptr(x86::rbp, arg_1_offset), x86::eax);
     }
     if (instr->type == op_push) {
       // TODO assuming args are lvalues
