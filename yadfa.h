@@ -136,8 +136,10 @@ struct instruction {
         break;
       case op_function:
         out << std::string("function");
+        break;
       case op_nop:
         out << std::string("nop");
+        break;
       default:
         break;
     }
@@ -224,6 +226,11 @@ struct n_addr_instruction : public instruction {
       out << a;
       ++arg_number;
     }
+    // there args[0] is function name
+    if (args.size() == 1) {
+      out << '(';
+    }
+
     out << ')';
     return out;
   }
