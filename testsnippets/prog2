@@ -1,4 +1,3 @@
-function start()
 var a int32
 mov a 3
 var b int32
