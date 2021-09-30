@@ -1,6 +1,7 @@
 var a int32
 mov a 5
-jmp 1
+jmp end
 mov a 7
+label end:
 nop
 

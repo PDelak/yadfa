@@ -89,10 +89,10 @@ int main(int argc, char* argv[]) {
     dump_program(optimized_program, std::cout);
   } else if (command == "--exec") {
     auto program = parse(argv[2], table);
-    exec(program);
+    exec(program, table);
   } else if (command == "--dump-x86") {
     auto program = parse(argv[2], table);
-    dump_x86_64(program);
+    dump_x86_64(program, table);
   } else {
     usage();
     return -1;
