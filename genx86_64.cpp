@@ -14,7 +14,7 @@ void dump_x86_64(const asmjit::CodeHolder &code) {
 }
 
 void gen_x64(const instruction_vec &i_vec, const asmjit::JitRuntime &rt,
-             asmjit::CodeHolder &code, const label_table& ltable) {
+             asmjit::CodeHolder &code, const label_table &ltable) {
   using namespace asmjit;
   std::map<std::string, size_t> variables_indexes;
 
@@ -158,8 +158,7 @@ void gen_x64(const instruction_vec &i_vec, const asmjit::JitRuntime &rt,
         auto label_it = ltable.instance.find(arg);
         if (label_it != ltable.instance.end()) {
           next_instruction_index = label_it->second;
-        }
-        else {
+        } else {
           std::string message = "label : " + arg + " does not exists";
           throw code_generation_error(message.c_str());
         }
@@ -224,11 +223,22 @@ void gen_x64(const instruction_vec &i_vec, const asmjit::JitRuntime &rt,
       a.cmp(x86::ebx, 0);
       a.jng(false_label);
       // only if digit for now
-      auto jmp_offset = std::stoi(offset);
-      if (jmp_offset > 0) {
-        jmp_offset += 1;
+      int next_instruction_index = 0;
+      if (isdigit(offset[0])) {
+        auto jmp_offset = std::stoi(offset);
+        if (jmp_offset > 0) {
+          jmp_offset += 1;
+        }
+        next_instruction_index = index + jmp_offset;
+      } else {
+        auto label_it = ltable.instance.find(offset);
+        if (label_it != ltable.instance.end()) {
+          next_instruction_index = label_it->second;
+        } else {
+          std::string message = "label : " + arg + " does not exists";
+          throw code_generation_error(message.c_str());
+        }
       }
-      auto next_instruction_index = index + jmp_offset;
       auto label_it = label_per_instruction.find(next_instruction_index);
       if (label_it == label_per_instruction.end()) {
         code_generation_error("instruction is out of range");
@@ -247,7 +257,7 @@ void gen_x64(const instruction_vec &i_vec, const asmjit::JitRuntime &rt,
   a.ret();
 }
 
-int exec(const instruction_vec &i_vec, const label_table& ltable) {
+int exec(const instruction_vec &i_vec, const label_table &ltable) {
   typedef int (*Func)(void);
 
   asmjit::CodeHolder code;
@@ -264,7 +274,7 @@ int exec(const instruction_vec &i_vec, const label_table& ltable) {
   return 0;
 }
 
-void dump_x86_64(const instruction_vec &i_vec, const label_table& ltable) {
+void dump_x86_64(const instruction_vec &i_vec, const label_table &ltable) {
   typedef int (*Func)(void);
 
   asmjit::CodeHolder code;
