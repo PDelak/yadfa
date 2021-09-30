@@ -148,6 +148,7 @@ struct instruction {
 };
 
 using instruction_ptr = std::unique_ptr<instruction>;
+using instruction_vec = std::vector<instruction_ptr>;
 
 struct noarg_instruction : public instruction {
   noarg_instruction(instruction_type t) : instruction(t) {}
@@ -209,9 +210,20 @@ struct three_addr_instruction : public instruction {
   }
 };
 
-struct n_addr_instruction : public instruction {
-  n_addr_instruction(instruction_type t, std::vector<std::string> a) : instruction(t), args(a) {}
+struct function_instruction : public instruction {
+  function_instruction(instruction_type t, std::vector<std::string> a,
+                       instruction_vec i_vec)
+      : instruction(t), args(a), body(std::move(i_vec)) {}
+  function_instruction(const function_instruction &rhs)
+      : instruction(rhs.type) {
+    args = rhs.args;
+    for (const auto &i : rhs.body) {
+      std::unique_ptr<instruction> instr(i->clone());
+      body.push_back(std::move(instr));
+    }
+  }
   std::vector<std::string> args;
+  instruction_vec body;
   std::ostream& dump(std::ostream& out) {
     int arg_number = 0;
     dump_type(out) << ' ';
@@ -234,9 +246,7 @@ struct n_addr_instruction : public instruction {
     out << ')';
     return out;
   }
-  instruction* clone() {
-    return new n_addr_instruction(*this);
-  }
+  instruction *clone() { return new function_instruction(*this); }
   bool is_arg_equal(const std::string& value) const {
     for (const auto& a : args) {
       if (a == value) return true;
@@ -249,8 +259,6 @@ struct label_table {
   using internal_label_table = std::map<std::string, int>;
   internal_label_table instance;
 };
-
-using instruction_vec = std::vector<instruction_ptr>;
 
 struct scanning_state {
   scanning_state(const std::string& input) : current(input.begin()), end(input.end()) {}
@@ -295,6 +303,8 @@ void parse_function(instruction_vec& i_vec, scanning_state& state, label_table& 
 std::string read_file(const std::string file);
 
 instruction_vec parse(const std::string& filename, label_table& table);
+std::string parse_instruction(instruction_vec &program, scanning_state &state,
+                              label_table &table);
 
 struct in_out_sets {
   std::vector<std::string> in_set;

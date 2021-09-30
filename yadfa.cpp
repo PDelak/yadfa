@@ -223,6 +223,7 @@ void parse_function(instruction_vec& i_vec, scanning_state& state, label_table& 
   std::vector<std::string> function_args;
   function_args.push_back(function_name);
   std::string token;
+  // handle function signature
   do {
     token = getNextToken(state);
     if (isdigit(token[0])) {
@@ -233,7 +234,15 @@ void parse_function(instruction_vec& i_vec, scanning_state& state, label_table& 
       function_args.push_back(token);
     }
   } while (token != ")");
-  i_vec.push_back(std::make_unique<n_addr_instruction>(op_function, function_args));
+  // handle function body
+  instruction_vec body;
+  do {
+    token = parse_instruction(body, state, table);
+  } while (token != "ret");
+  parse_instruction(body, state, table);
+
+  i_vec.push_back(std::make_unique<function_instruction>(
+      op_function, function_args, std::move(body)));
 }
 
 void parse_nop(instruction_vec& i_vec, scanning_state& state, label_table& table) {
@@ -251,65 +260,70 @@ std::string read_file(const std::string file) {
   return buffer;
 }
 
+std::string parse_instruction(instruction_vec &program, scanning_state &state,
+                              label_table &table) {
+  std::string token;
+  token = getNextToken(state);
+  if (token == "var") {
+    parse_var(program, state);
+  } else if (token == "mov") {
+    parse_mov(program, state);
+  } else if (token == "push") {
+    parse_push(program, state);
+  } else if (token == "pop") {
+    parse_pop(program, state);
+  } else if (token == "jmp") {
+    parse_jmp(program, state);
+  } else if (token == "if") {
+    parse_if(program, state);
+  } else if (token == "call") {
+    parse_call(program, state);
+  } else if (token == "ret") {
+    parse_ret(program, state);
+  } else if (token == "add") {
+    parse_add(program, state);
+  } else if (token == "sub") {
+    parse_sub(program, state);
+  } else if (token == "mul") {
+    parse_mul(program, state);
+  } else if (token == "div") {
+    parse_div(program, state);
+  } else if (token == "new") {
+    parse_new(program, state);
+  } else if (token == "delete") {
+    parse_delete(program, state);
+  } else if (token == "cmp_eq") {
+    parse_cmp_eq(program, state);
+  } else if (token == "cmp_neq") {
+    parse_cmp_neq(program, state);
+  } else if (token == "cmp_lt") {
+    parse_cmp_lt(program, state);
+  } else if (token == "cmp_gt") {
+    parse_cmp_gt(program, state);
+  } else if (token == "cmp_gte") {
+    parse_cmp_gte(program, state);
+  } else if (token == "cmp_lte") {
+    parse_cmp_lte(program, state);
+  } else if (token == "label") {
+    parse_label(program, state, table);
+  } else if (token == "function") {
+    parse_function(program, state, table);
+  } else if (token == "nop") {
+    parse_nop(program, state, table);
+  } else if (!state.eof()) {
+    throw parse_exception("undefined opcode : " + token +
+                          " in line : " + std::to_string(state.line_number));
+  }
+  return token;
+}
+
 instruction_vec parse(const std::string& filename, label_table& table) {
   std::ifstream in(filename);
-  std::string line;
   instruction_vec program;
   const auto parse_buf = read_file(filename);
   scanning_state state(parse_buf);
   do {
-    std::string token;
-    token = getNextToken(state);
-    if (token == "var") {
-      parse_var(program, state);
-    } else if (token == "mov") {
-      parse_mov(program, state);
-    } else if (token == "push") {
-      parse_push(program, state);
-    } else if (token == "pop") {
-      parse_pop(program, state);
-    } else if (token == "jmp") {
-      parse_jmp(program, state);
-    } else if (token == "if") {
-      parse_if(program, state);
-    } else if (token == "call") {
-      parse_call(program, state);
-    } else if (token == "ret") {
-      parse_ret(program, state);
-    } else if (token == "add") {
-      parse_add(program, state);
-    } else if (token == "sub") {
-      parse_sub(program, state);
-    } else if (token == "mul") {
-      parse_mul(program, state);
-    } else if (token == "div") {
-      parse_div(program, state);
-    } else if (token == "new") {
-      parse_new(program, state);
-    } else if (token == "delete") {
-      parse_delete(program, state);
-    } else if (token == "cmp_eq") {
-      parse_cmp_eq(program, state);
-    } else if (token == "cmp_neq") {
-      parse_cmp_neq(program, state);
-    } else if (token == "cmp_lt") {
-      parse_cmp_lt(program, state);
-    } else if (token == "cmp_gt") {
-      parse_cmp_gt(program, state);
-    } else if (token == "cmp_gte") {
-      parse_cmp_gte(program, state);
-    } else if (token == "cmp_lte") {
-      parse_cmp_lte(program, state);
-    } else if (token == "label") {
-      parse_label(program, state, table);
-    } else if (token == "function") {
-      parse_function(program, state, table);
-    } else if (token == "nop") {
-      parse_nop(program, state, table);
-    } else if (!state.eof()) {
-      throw parse_exception("undefined opcode : " + token +
-                            " in line : " + std::to_string(state.line_number));
-    }
+    parse_instruction(program, state, table);
   } while (!state.eof());
   return program;
 }
