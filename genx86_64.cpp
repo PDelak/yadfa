@@ -43,6 +43,23 @@ void gen_epilog(asmjit::x86::Assembler &a) {
   a.pop(x86::rbp);
 }
 
+size_t gen_allocation(const std::map<std::string, size_t> &variables_indexes,
+                      asmjit::x86::Assembler &a) {
+  using namespace asmjit;
+  // TODO hardcoded for now, only 32 bit values
+  constexpr size_t variable_size = 4;
+  const size_t allocated_mem = variables_indexes.size() * variable_size;
+  a.sub(x86::rsp, allocated_mem);
+  return allocated_mem;
+}
+
+void deallocate_and_return(size_t allocated_mem, asmjit::x86::Assembler &a) {
+  using namespace asmjit;
+  a.add(x86::rsp, allocated_mem);
+  gen_epilog(a);
+  a.ret();
+}
+
 void populate_label(const instruction_vec &i_vec, asmjit::x86::Assembler &a,
                     std::map<size_t, asmjit::Label> &label_per_instruction,
                     int index) {
@@ -273,17 +290,14 @@ void gen_x64(const instruction_vec &i_vec, const asmjit::JitRuntime &rt,
   code.init(rt.environment());
   x86::Assembler a(&code);
 
-  auto variables_indexes = populate_variable_indexes(i_vec);
-
   std::map<size_t, Label> label_per_instruction;
 
-  // TODO hardcoded for now, only 32 bit values
-  constexpr size_t variable_size = 4;
-  const size_t allocated_mem = variables_indexes.size() * variable_size;
+  auto variables_indexes = populate_variable_indexes(i_vec);
 
   gen_prolog(a);
   // allocate memory
-  a.sub(x86::rsp, allocated_mem);
+  auto allocated_mem = gen_allocation(variables_indexes, a);
+
   for (int index = 0; index != i_vec.size(); ++index) {
     populate_label(i_vec, a, label_per_instruction, index);
   }
@@ -291,11 +305,8 @@ void gen_x64(const instruction_vec &i_vec, const asmjit::JitRuntime &rt,
     gen_x64_instruction(i_vec, variables_indexes, label_per_instruction, a,
                         ltable, index);
   }
-
   // deallocate
-  a.add(x86::rsp, allocated_mem);
-  gen_epilog(a);
-  a.ret();
+  deallocate_and_return(allocated_mem, a);
 }
 
 int exec(const instruction_vec &i_vec, const label_table &ltable) {
