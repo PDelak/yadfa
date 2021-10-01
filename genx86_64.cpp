@@ -5,7 +5,7 @@ struct code_generation_error : public std::runtime_error {
 };
 
 using function_instruction_vec =
-    std::map<std::string, std::pair<int, function_instruction>>;
+    std::map<std::string, function_instruction>;
 
 void dump_x86_64(const asmjit::CodeHolder &code) {
   using namespace asmjit;
@@ -74,6 +74,7 @@ void populate_label(const instruction_vec &i_vec, asmjit::x86::Assembler &a,
 void gen_x64_instruction(const instruction_vec &i_vec,
                          std::map<std::string, size_t> &variables_indexes,
                          std::map<size_t, asmjit::Label> &label_per_instruction,
+                         std::map<std::string, asmjit::Label> &function_labels,
                          function_instruction_vec &function_vec,
                          asmjit::x86::Assembler &a, const label_table &ltable,
                          int index) {
@@ -285,9 +286,16 @@ void gen_x64_instruction(const instruction_vec &i_vec,
         std::move(static_cast<function_instruction *>(instr.get())->body);
     function_vec.insert(
         {args.front(),
-         {index, function_instruction(op_function, args, std::move(body))}});
+         function_instruction(op_function, args, std::move(body))});
   }
   if (instr->type == op_call) {
+    auto arg = static_cast<unary_instruction *>(instr.get())->arg_1;
+    auto label_it = function_labels.find(arg);
+    if (label_it == function_labels.end()) {
+      std::string message = "function " + arg + " does not exits";
+      throw code_generation_error(message.c_str());
+    }
+    a.call(label_it->second);
   }
   // op_ret is no-op for now
   if (instr->type == op_ret) {
@@ -301,33 +309,34 @@ void gen_x64(const instruction_vec &i_vec, const asmjit::JitRuntime &rt,
   x86::Assembler a(&code);
 
   std::map<size_t, Label> label_per_instruction;
+  std::map<std::string, Label> function_labels;
 
   auto variables_indexes = populate_variable_indexes(i_vec);
   function_instruction_vec function_vec;
 
-  gen_prolog(a);
-  // allocate memory
-  auto allocated_mem = gen_allocation(variables_indexes, a);
-
+  // there are two passes
+  // first we traverse all functions
+  // and cache them
+  // then we traverse cache to generate code for each
+  // funtion
   for (int index = 0; index != i_vec.size(); ++index) {
-    populate_label(i_vec, a, label_per_instruction, index);
-  }
-  for (int index = 0; index != i_vec.size(); ++index) {
+    if(i_vec[index]->type != op_function) continue;
     gen_x64_instruction(i_vec, variables_indexes, label_per_instruction,
+                        function_labels,
                         function_vec, a, ltable, index);
   }
-  // deallocate
-  deallocate_and_return(allocated_mem, a);
 
+  // traverse internal function cache and generate code
   // generate code for functions
   for (const auto &fun : function_vec) {
     auto function_name = fun.first;
-    auto function_index = fun.second.first;
-    const auto &function_body = fun.second.second.body;
+    const auto &function_body = fun.second.body;
+    const auto &instr = function_body.front();
+    auto function_label = a.newLabel();
+    function_labels[function_name] = function_label;
+
     auto variables_indexes_function_body =
         populate_variable_indexes(function_body);
-    auto fun_label = a.newLabel();
-    a.bind(fun_label);
     gen_prolog(a);
     // allocate memory
     auto allocated_mem_fun = gen_allocation(variables_indexes_function_body, a);
@@ -337,12 +346,27 @@ void gen_x64(const instruction_vec &i_vec, const asmjit::JitRuntime &rt,
     }
     for (int body_index = 0; body_index != function_body.size(); ++body_index) {
       gen_x64_instruction(function_body, variables_indexes_function_body,
-                          label_per_instruction, function_vec, a, ltable,
+                          label_per_instruction, function_labels,function_vec, a, ltable,
                           body_index);
     }
     // deallocate
     deallocate_and_return(allocated_mem_fun, a);
   }
+  // generate code for "main" function
+  gen_prolog(a);
+  // allocate memory
+  auto allocated_mem = gen_allocation(variables_indexes, a);
+
+  for (int index = 0; index != i_vec.size(); ++index) {
+    populate_label(i_vec, a, label_per_instruction, index);
+  }
+  for (int index = 0; index != i_vec.size(); ++index) {
+    gen_x64_instruction(i_vec, variables_indexes, label_per_instruction,
+                        function_labels,
+                        function_vec, a, ltable, index);
+  }
+  // deallocate
+  deallocate_and_return(allocated_mem, a);
 }
 
 int exec(const instruction_vec &i_vec, const label_table &ltable) {

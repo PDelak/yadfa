@@ -1,12 +1,21 @@
 function start(a int32)
   var a int32
-  mov a 3
+  mov a 30
   var b int32
-  mov b 1
+  mov b 10
   var c int32
   add c a b
-  mov c 1
-  mov c 2
-  mov c 3
+  mov c 10
+  mov c 20
+  mov c 30
   add a c b
 ret
+
+function foo()
+  var x int32
+  mov x 22
+ret
+
+var z int32
+call foo
+mov z 3

@@ -239,7 +239,6 @@ void parse_function(instruction_vec& i_vec, scanning_state& state, label_table& 
   do {
     token = parse_instruction(body, state, table);
   } while (token != "ret");
-  parse_instruction(body, state, table);
 
   i_vec.push_back(std::make_unique<function_instruction>(
       op_function, function_args, std::move(body)));
