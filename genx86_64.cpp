@@ -4,8 +4,7 @@ struct code_generation_error : public std::runtime_error {
   code_generation_error(const char *what) : std::runtime_error(what) {}
 };
 
-using function_instruction_vec =
-    std::map<std::string, function_instruction>;
+using function_instruction_vec = std::map<std::string, function_instruction>;
 
 void dump_x86_64(const asmjit::CodeHolder &code) {
   using namespace asmjit;
@@ -284,9 +283,8 @@ void gen_x64_instruction(const instruction_vec &i_vec,
     auto args = static_cast<function_instruction *>(instr.get())->args;
     auto body =
         std::move(static_cast<function_instruction *>(instr.get())->body);
-    function_vec.insert(
-        {args.front(),
-         function_instruction(op_function, args, std::move(body))});
+    function_vec.insert({args.front(), function_instruction(op_function, args,
+                                                            std::move(body))});
   }
   if (instr->type == op_call) {
     auto arg = static_cast<unary_instruction *>(instr.get())->arg_1;
@@ -320,10 +318,10 @@ void gen_x64(const instruction_vec &i_vec, const asmjit::JitRuntime &rt,
   // then we traverse cache to generate code for each
   // funtion
   for (int index = 0; index != i_vec.size(); ++index) {
-    if(i_vec[index]->type != op_function) continue;
+    if (i_vec[index]->type != op_function)
+      continue;
     gen_x64_instruction(i_vec, variables_indexes, label_per_instruction,
-                        function_labels,
-                        function_vec, a, ltable, index);
+                        function_labels, function_vec, a, ltable, index);
   }
 
   // traverse internal function cache and generate code
@@ -346,8 +344,8 @@ void gen_x64(const instruction_vec &i_vec, const asmjit::JitRuntime &rt,
     }
     for (int body_index = 0; body_index != function_body.size(); ++body_index) {
       gen_x64_instruction(function_body, variables_indexes_function_body,
-                          label_per_instruction, function_labels,function_vec, a, ltable,
-                          body_index);
+                          label_per_instruction, function_labels, function_vec,
+                          a, ltable, body_index);
     }
     // deallocate
     deallocate_and_return(allocated_mem_fun, a);
@@ -362,8 +360,7 @@ void gen_x64(const instruction_vec &i_vec, const asmjit::JitRuntime &rt,
   }
   for (int index = 0; index != i_vec.size(); ++index) {
     gen_x64_instruction(i_vec, variables_indexes, label_per_instruction,
-                        function_labels,
-                        function_vec, a, ltable, index);
+                        function_labels, function_vec, a, ltable, index);
   }
   // deallocate
   deallocate_and_return(allocated_mem, a);
