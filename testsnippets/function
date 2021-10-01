@@ -1,21 +1,18 @@
 function start(a int32)
   var a int32
-  mov a 30
-  var b int32
-  mov b 10
-  var c int32
-  add c a b
-  mov c 10
-  mov c 20
-  mov c 30
-  add a c b
+  mov a 1
+  jmp end
+  mov a 7
+  label end:
+  nop
 ret
 
 function foo()
   var x int32
-  mov x 22
+  mov x 2
 ret
 
 var z int32
 call foo
-mov z 3
+call start
+
