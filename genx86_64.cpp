@@ -312,6 +312,9 @@ void gen_x64(const instruction_vec &i_vec, const asmjit::JitRuntime &rt,
   auto variables_indexes = populate_variable_indexes(i_vec);
   function_instruction_vec function_vec;
 
+  auto mainLabel = a.newLabel();
+  a.jmp(mainLabel);
+
   // there are two passes
   // first we traverse all functions
   // and cache them
@@ -352,6 +355,7 @@ void gen_x64(const instruction_vec &i_vec, const asmjit::JitRuntime &rt,
     deallocate_and_return(allocated_mem_fun, a);
   }
   // generate code for "main" function
+  a.bind(mainLabel);
   gen_prolog(a);
   // allocate memory
   auto allocated_mem = gen_allocation(variables_indexes, a);
