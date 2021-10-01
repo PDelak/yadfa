@@ -335,6 +335,7 @@ void gen_x64(const instruction_vec &i_vec, const asmjit::JitRuntime &rt,
 
     auto variables_indexes_function_body =
         populate_variable_indexes(function_body);
+    a.bind(function_label);
     gen_prolog(a);
     // allocate memory
     auto allocated_mem_fun = gen_allocation(variables_indexes_function_body, a);
