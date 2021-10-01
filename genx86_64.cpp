@@ -4,6 +4,9 @@ struct code_generation_error : public std::runtime_error {
   code_generation_error(const char *what) : std::runtime_error(what) {}
 };
 
+using function_instruction_vec =
+    std::map<std::string, std::pair<int, function_instruction>>;
+
 void dump_x86_64(const asmjit::CodeHolder &code) {
   using namespace asmjit;
   CodeBuffer &buffer = code.textSection()->buffer();
@@ -71,6 +74,7 @@ void populate_label(const instruction_vec &i_vec, asmjit::x86::Assembler &a,
 void gen_x64_instruction(const instruction_vec &i_vec,
                          std::map<std::string, size_t> &variables_indexes,
                          std::map<size_t, asmjit::Label> &label_per_instruction,
+                         function_instruction_vec &function_vec,
                          asmjit::x86::Assembler &a, const label_table &ltable,
                          int index) {
   constexpr size_t variable_size = 4;
@@ -275,11 +279,17 @@ void gen_x64_instruction(const instruction_vec &i_vec,
     a.nop();
   }
   if (instr->type == op_function) {
+    // function codegen is postponed
     auto args = static_cast<function_instruction *>(instr.get())->args;
-    const auto &body = static_cast<function_instruction *>(instr.get())->body;
+    auto body =
+        std::move(static_cast<function_instruction *>(instr.get())->body);
+    function_vec.insert(
+        {args.front(),
+         {index, function_instruction(op_function, args, std::move(body))}});
   }
   if (instr->type == op_call) {
   }
+  // op_ret is no-op for now
   if (instr->type == op_ret) {
   }
 }
@@ -293,6 +303,7 @@ void gen_x64(const instruction_vec &i_vec, const asmjit::JitRuntime &rt,
   std::map<size_t, Label> label_per_instruction;
 
   auto variables_indexes = populate_variable_indexes(i_vec);
+  function_instruction_vec function_vec;
 
   gen_prolog(a);
   // allocate memory
@@ -302,11 +313,36 @@ void gen_x64(const instruction_vec &i_vec, const asmjit::JitRuntime &rt,
     populate_label(i_vec, a, label_per_instruction, index);
   }
   for (int index = 0; index != i_vec.size(); ++index) {
-    gen_x64_instruction(i_vec, variables_indexes, label_per_instruction, a,
-                        ltable, index);
+    gen_x64_instruction(i_vec, variables_indexes, label_per_instruction,
+                        function_vec, a, ltable, index);
   }
   // deallocate
   deallocate_and_return(allocated_mem, a);
+
+  // generate code for functions
+  for (const auto &fun : function_vec) {
+    auto function_name = fun.first;
+    auto function_index = fun.second.first;
+    const auto &function_body = fun.second.second.body;
+    auto variables_indexes_function_body =
+        populate_variable_indexes(function_body);
+    auto fun_label = a.newLabel();
+    a.bind(fun_label);
+    gen_prolog(a);
+    // allocate memory
+    auto allocated_mem_fun = gen_allocation(variables_indexes_function_body, a);
+
+    for (int body_index = 0; body_index != function_body.size(); ++body_index) {
+      populate_label(function_body, a, label_per_instruction, body_index);
+    }
+    for (int body_index = 0; body_index != function_body.size(); ++body_index) {
+      gen_x64_instruction(function_body, variables_indexes_function_body,
+                          label_per_instruction, function_vec, a, ltable,
+                          body_index);
+    }
+    // deallocate
+    deallocate_and_return(allocated_mem_fun, a);
+  }
 }
 
 int exec(const instruction_vec &i_vec, const label_table &ltable) {
