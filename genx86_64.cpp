@@ -76,7 +76,7 @@ void gen_x64_instruction(const instruction_vec &i_vec,
                          std::map<std::string, asmjit::Label> &function_labels,
                          function_instruction_vec &function_vec,
                          asmjit::x86::Assembler &a, const label_table &ltable,
-                         int index) {
+                         int index, const builtin_functions_map& builtin_functions) {
   constexpr size_t variable_size = 4;
   using namespace asmjit;
   const auto &instr = i_vec[index];
@@ -291,9 +291,16 @@ void gen_x64_instruction(const instruction_vec &i_vec,
     auto label_it = function_labels.find(arg);
     if (label_it == function_labels.end()) {
       std::string message = "function " + arg + " does not exits";
-      throw code_generation_error(message.c_str());
+      auto builtin_functions_it = builtin_functions.find(arg);
+      if (builtin_functions_it == builtin_functions.end()) {
+        throw code_generation_error(message.c_str());
+      } else {
+        a.mov(x86::rax,  builtin_functions_it->second);
+        a.call(x86::rax);
+      }
+    } else {
+      a.call(label_it->second);
     }
-    a.call(label_it->second);
   }
   // op_ret is no-op for now
   if (instr->type == op_ret) {
@@ -301,7 +308,7 @@ void gen_x64_instruction(const instruction_vec &i_vec,
 }
 
 void gen_x64(const instruction_vec &i_vec, const asmjit::JitRuntime &rt,
-             asmjit::CodeHolder &code, const label_table &ltable) {
+             asmjit::CodeHolder &code, const label_table &ltable, const builtin_functions_map& builtin_functions) {
   using namespace asmjit;
   code.init(rt.environment());
   x86::Assembler a(&code);
@@ -324,7 +331,7 @@ void gen_x64(const instruction_vec &i_vec, const asmjit::JitRuntime &rt,
     if (i_vec[index]->type != op_function)
       continue;
     gen_x64_instruction(i_vec, variables_indexes, label_per_instruction,
-                        function_labels, function_vec, a, ltable, index);
+                        function_labels, function_vec, a, ltable, index, builtin_functions);
   }
 
   // traverse internal function cache and generate code
@@ -349,7 +356,7 @@ void gen_x64(const instruction_vec &i_vec, const asmjit::JitRuntime &rt,
     for (int body_index = 0; body_index != function_body.size(); ++body_index) {
       gen_x64_instruction(function_body, variables_indexes_function_body,
                           label_per_instruction, function_labels, function_vec,
-                          a, ltable, body_index);
+                          a, ltable, body_index, builtin_functions);
     }
     // deallocate
     deallocate_and_return(allocated_mem_fun, a);
@@ -365,19 +372,19 @@ void gen_x64(const instruction_vec &i_vec, const asmjit::JitRuntime &rt,
   }
   for (int index = 0; index != i_vec.size(); ++index) {
     gen_x64_instruction(i_vec, variables_indexes, label_per_instruction,
-                        function_labels, function_vec, a, ltable, index);
+                        function_labels, function_vec, a, ltable, index, builtin_functions);
   }
   // deallocate
   deallocate_and_return(allocated_mem, a);
 }
 
-int exec(const instruction_vec &i_vec, const label_table &ltable) {
+int exec(const instruction_vec &i_vec, const label_table &ltable, const builtin_functions_map& builtin_functions) {
   typedef int (*Func)(void);
 
   asmjit::CodeHolder code;
   asmjit::JitRuntime rt;
 
-  gen_x64(i_vec, rt, code, ltable);
+  gen_x64(i_vec, rt, code, ltable, builtin_functions);
   Func fn;
   asmjit::Error err = rt.add(&fn, &code);
   if (err)
@@ -388,12 +395,12 @@ int exec(const instruction_vec &i_vec, const label_table &ltable) {
   return 0;
 }
 
-void dump_x86_64(const instruction_vec &i_vec, const label_table &ltable) {
+void dump_x86_64(const instruction_vec &i_vec, const label_table &ltable, const builtin_functions_map& builtin_functions) {
   typedef int (*Func)(void);
 
   asmjit::CodeHolder code;
   asmjit::JitRuntime rt;
 
-  gen_x64(i_vec, rt, code, ltable);
+  gen_x64(i_vec, rt, code, ltable, builtin_functions);
   dump_x86_64(code);
 }

@@ -366,8 +366,12 @@ instruction_vec optimize(const instruction_vec& i_vec,
 
 void dump_program(const instruction_vec& i_vec, std::ostream& out);
 
+using builtin_functions_map = std::map<std::string, void (*)()>;
+
 // Code gen stuff
 void gen_x64(const instruction_vec &i_vec, const asmjit::JitRuntime &rt,
-             asmjit::CodeHolder &code, const label_table &ltable);
-int exec(const instruction_vec &i_vec, const label_table &ltable);
-void dump_x86_64(const instruction_vec &i_vec, const label_table &ltable);
+             asmjit::CodeHolder &code, const label_table &ltable,
+             const builtin_functions_map& builtin_functions);
+
+int exec(const instruction_vec &i_vec, const label_table &ltable, const builtin_functions_map& builtin_functions);
+void dump_x86_64(const instruction_vec &i_vec, const label_table &ltable, const builtin_functions_map& builtin_functions);

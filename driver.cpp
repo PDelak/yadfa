@@ -15,6 +15,11 @@ void usage() {
 
 #define YADFA_ENABLE_TESTS 1
 
+void builtin_print()
+{
+  std::cout << "print" << std::endl;
+}
+
 int main(int argc, char* argv[]) {
   if (argc < 2) {
     usage();
@@ -88,11 +93,15 @@ int main(int argc, char* argv[]) {
     auto optimized_program = optimize(program, variable_intervals);
     dump_program(optimized_program, std::cout);
   } else if (command == "--exec") {
+    builtin_functions_map builtin_functions;
     auto program = parse(argv[2], table);
-    exec(program, table);
+    builtin_functions.insert({"print", builtin_print});
+    exec(program, table, builtin_functions);
   } else if (command == "--dump-x86") {
+    builtin_functions_map builtin_functions;
+    builtin_functions.insert({"print", builtin_print});
     auto program = parse(argv[2], table);
-    dump_x86_64(program, table);
+    dump_x86_64(program, table, builtin_functions);
   } else {
     usage();
     return -1;
