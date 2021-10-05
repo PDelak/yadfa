@@ -76,7 +76,8 @@ void gen_x64_instruction(const instruction_vec &i_vec,
                          std::map<std::string, asmjit::Label> &function_labels,
                          function_instruction_vec &function_vec,
                          asmjit::x86::Assembler &a, const label_table &ltable,
-                         int index, const builtin_functions_map& builtin_functions) {
+                         int index,
+                         const builtin_functions_map &builtin_functions) {
   constexpr size_t variable_size = 4;
   using namespace asmjit;
   const auto &instr = i_vec[index];
@@ -295,8 +296,7 @@ void gen_x64_instruction(const instruction_vec &i_vec,
       if (builtin_functions_it == builtin_functions.end()) {
         throw code_generation_error(message.c_str());
       } else {
-        a.mov(x86::rax,  builtin_functions_it->second);
-        a.call(x86::rax);
+        a.call(asmjit::imm(builtin_functions_it->second));
       }
     } else {
       a.call(label_it->second);
@@ -308,7 +308,8 @@ void gen_x64_instruction(const instruction_vec &i_vec,
 }
 
 void gen_x64(const instruction_vec &i_vec, const asmjit::JitRuntime &rt,
-             asmjit::CodeHolder &code, const label_table &ltable, const builtin_functions_map& builtin_functions) {
+             asmjit::CodeHolder &code, const label_table &ltable,
+             const builtin_functions_map &builtin_functions) {
   using namespace asmjit;
   code.init(rt.environment());
   x86::Assembler a(&code);
@@ -331,7 +332,8 @@ void gen_x64(const instruction_vec &i_vec, const asmjit::JitRuntime &rt,
     if (i_vec[index]->type != op_function)
       continue;
     gen_x64_instruction(i_vec, variables_indexes, label_per_instruction,
-                        function_labels, function_vec, a, ltable, index, builtin_functions);
+                        function_labels, function_vec, a, ltable, index,
+                        builtin_functions);
   }
 
   // traverse internal function cache and generate code
@@ -372,13 +374,15 @@ void gen_x64(const instruction_vec &i_vec, const asmjit::JitRuntime &rt,
   }
   for (int index = 0; index != i_vec.size(); ++index) {
     gen_x64_instruction(i_vec, variables_indexes, label_per_instruction,
-                        function_labels, function_vec, a, ltable, index, builtin_functions);
+                        function_labels, function_vec, a, ltable, index,
+                        builtin_functions);
   }
   // deallocate
   deallocate_and_return(allocated_mem, a);
 }
 
-int exec(const instruction_vec &i_vec, const label_table &ltable, const builtin_functions_map& builtin_functions) {
+int exec(const instruction_vec &i_vec, const label_table &ltable,
+         const builtin_functions_map &builtin_functions) {
   typedef int (*Func)(void);
 
   asmjit::CodeHolder code;
@@ -395,7 +399,8 @@ int exec(const instruction_vec &i_vec, const label_table &ltable, const builtin_
   return 0;
 }
 
-void dump_x86_64(const instruction_vec &i_vec, const label_table &ltable, const builtin_functions_map& builtin_functions) {
+void dump_x86_64(const instruction_vec &i_vec, const label_table &ltable,
+                 const builtin_functions_map &builtin_functions) {
   typedef int (*Func)(void);
 
   asmjit::CodeHolder code;

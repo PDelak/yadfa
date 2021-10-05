@@ -15,9 +15,8 @@ void usage() {
 
 #define YADFA_ENABLE_TESTS 1
 
-void builtin_print()
-{
-  std::cout << "print" << std::endl;
+extern "C" {
+void builtin_print() { std::cout << "print" << '\n'; }
 }
 
 int main(int argc, char* argv[]) {

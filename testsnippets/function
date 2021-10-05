@@ -15,4 +15,4 @@ ret
 var z int32
 call foo
 call start
-
+call print
