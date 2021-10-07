@@ -4,7 +4,13 @@ struct code_generation_error : public std::runtime_error {
   code_generation_error(const char *what) : std::runtime_error(what) {}
 };
 
-using function_instruction_vec = std::map<std::string, function_instruction>;
+struct function_definition
+{
+  std::string name;
+  function_instruction statements;
+};
+
+using function_instruction_vec = std::map<std::string, function_definition>;
 
 void dump_x86_64(const asmjit::CodeHolder &code) {
   using namespace asmjit;
@@ -284,8 +290,10 @@ void gen_x64_instruction(const instruction_vec &i_vec,
     auto args = static_cast<function_instruction *>(instr.get())->args;
     auto body =
         std::move(static_cast<function_instruction *>(instr.get())->body);
-    function_vec.insert({args.front(), function_instruction(op_function, args,
-                                                            std::move(body))});
+    function_definition def{args.front(), function_instruction(op_function, args,
+                                                               std::move(body))};
+    def.name = args.front();
+    function_vec.insert({args.front(), def});
   }
   if (instr->type == op_call) {
     auto arg = static_cast<unary_instruction *>(instr.get())->arg_1;
@@ -296,6 +304,9 @@ void gen_x64_instruction(const instruction_vec &i_vec,
       if (builtin_functions_it == builtin_functions.end()) {
         throw code_generation_error(message.c_str());
       } else {
+        // TODO this is just placeholder for two parameters
+        a.mov(x86::rdi, 2);
+        a.mov(x86::rsi, 3);
         a.call(asmjit::imm(builtin_functions_it->second));
       }
     } else {
@@ -340,7 +351,8 @@ void gen_x64(const instruction_vec &i_vec, const asmjit::JitRuntime &rt,
   // generate code for functions
   for (const auto &fun : function_vec) {
     auto function_name = fun.first;
-    const auto &function_body = fun.second.body;
+    const auto& function_def = fun.second;
+    const auto &function_body = function_def.statements.body;
     const auto &instr = function_body.front();
     auto function_label = a.newLabel();
     function_labels[function_name] = function_label;

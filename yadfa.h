@@ -22,9 +22,11 @@ enum builtin_type {
   type_int8 = 0,
   type_int16,
   type_int32,
+  type_int64,
   type_uint8,
   type_uint16,
   type_uint32,
+  type_uint64,
   type_float
 };
 
@@ -366,7 +368,7 @@ instruction_vec optimize(const instruction_vec& i_vec,
 
 void dump_program(const instruction_vec& i_vec, std::ostream& out);
 
-using builtin_functions_map = std::map<std::string, void (*)(void)>;
+using builtin_functions_map = std::map<std::string, void*>;
 
 // Code gen stuff
 void gen_x64(const instruction_vec &i_vec, const asmjit::JitRuntime &rt,
