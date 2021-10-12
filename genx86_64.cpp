@@ -85,6 +85,20 @@ asmjit::x86::Gp get_register_by_index(int index) {
     break;
   case 2:
     reg = x86::rsi;
+    break;
+  case 3:
+    reg = x86::rdx;
+    break;
+  case 4:
+    reg = x86::rcx;
+    break;
+  case 5:
+    reg = x86::r8;
+    break;
+  case 6:
+    reg = x86::r9;
+    break;
+
   default:
     return reg;
   }
