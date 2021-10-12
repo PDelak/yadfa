@@ -116,12 +116,19 @@ void parse_if(instruction_vec& i_vec, scanning_state& state) {
 }
 
 void parse_call(instruction_vec& i_vec, scanning_state& state) {
-  auto arg = getNextToken(state);
-  if (arg == "-") {
-    arg = getNextToken(state);
-    arg = "-" + arg;
-  }
-  i_vec.push_back(std::make_unique<unary_instruction>(op_call, arg));
+  auto function_name = getNextToken(state);
+  auto open_bracket = getNextToken(state);
+  std::vector<std::string> function_args;
+  function_args.push_back(function_name);
+  std::string token;
+  // handle function signature
+  do {
+    token = getNextToken(state);
+    if (token != ")") {
+      function_args.push_back(token);
+    }
+  } while (token != ")");
+  i_vec.push_back(std::make_unique<call_instruction>(op_call, function_args));
 }
 
 void parse_ret(instruction_vec& i_vec, scanning_state& state) {

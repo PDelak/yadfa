@@ -212,6 +212,42 @@ struct three_addr_instruction : public instruction {
   }
 };
 
+struct call_instruction : public instruction {
+  call_instruction(instruction_type t, const std::vector<std::string> &a)
+      : instruction(t), args(a) {}
+  std::vector<std::string> args;
+  std::ostream &dump(std::ostream &out) {
+    int arg_number = 0;
+    dump_type(out) << ' ';
+    for (const auto a : args) {
+      // arguments start from second
+      if (arg_number == 1) {
+        out << " (";
+      }
+      if (arg_number > 1) {
+        out << ' ';
+      }
+      out << a;
+      ++arg_number;
+    }
+    // there args[0] is function name
+    if (args.size() == 1) {
+      out << '(';
+    }
+
+    out << ')';
+    return out;
+  }
+  instruction *clone() { return new call_instruction(*this); }
+  bool is_arg_equal(const std::string &value) const {
+    for (const auto &a : args) {
+      if (a == value)
+        return true;
+    }
+    return false;
+  }
+};
+
 struct function_instruction : public instruction {
   function_instruction(instruction_type t, std::vector<std::string> a,
                        instruction_vec i_vec)
@@ -368,7 +404,12 @@ instruction_vec optimize(const instruction_vec& i_vec,
 
 void dump_program(const instruction_vec& i_vec, std::ostream& out);
 
-using builtin_functions_map = std::map<std::string, void*>;
+struct builtin_function {
+  void *function_pointer = nullptr;
+  std::vector<builtin_type> args;
+};
+
+using builtin_functions_map = std::map<std::string, builtin_function>;
 
 // Code gen stuff
 void gen_x64(const instruction_vec &i_vec, const asmjit::JitRuntime &rt,

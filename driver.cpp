@@ -16,9 +16,7 @@ void usage() {
 #define YADFA_ENABLE_TESTS 1
 
 extern "C" {
-void builtin_print(int a, int b) {
-  printf("\nprint:%d, %d\n",a,b);
-}
+void builtin_print(int32_t a, int32_t b) { printf("\nprint:%d, %d\n", a, b); }
 }
 
 int main(int argc, char* argv[]) {
@@ -96,11 +94,15 @@ int main(int argc, char* argv[]) {
   } else if (command == "--exec") {
     builtin_functions_map builtin_functions;
     auto program = parse(argv[2], table);
-    builtin_functions.insert({"print", (void*)builtin_print});
+    builtin_function builtin_print_def{(void *)builtin_print,
+                                       {type_int32, type_int32}};
+    builtin_functions.insert({"print", builtin_print_def});
     exec(program, table, builtin_functions);
   } else if (command == "--dump-x86") {
     builtin_functions_map builtin_functions;
-    builtin_functions.insert({"print", (void*)builtin_print});
+    builtin_function builtin_print_def{(void *)builtin_print,
+                                       {type_int32, type_int32}};
+    builtin_functions.insert({"print", builtin_print_def});
     auto program = parse(argv[2], table);
     dump_x86_64(program, table, builtin_functions);
   } else {

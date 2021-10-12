@@ -76,6 +76,30 @@ void populate_label(const instruction_vec &i_vec, asmjit::x86::Assembler &a,
   label_per_instruction[index] = instruction_label;
 }
 
+asmjit::x86::Gp get_register_by_index(int index) {
+  using namespace asmjit;
+  x86::Gp reg;
+  switch (index) {
+  case 1:
+    reg = x86::rdi;
+    break;
+  case 2:
+    reg = x86::rsi;
+  default:
+    return reg;
+  }
+  return reg;
+}
+
+void push_arguments(asmjit::x86::Assembler &a,
+                    const builtin_function &builtin_fun,
+                    const std::vector<std::string> &args) {
+  using namespace asmjit;
+  for (int arg_index = 1; arg_index != args.size(); ++arg_index) {
+    a.mov(get_register_by_index(arg_index), std::stoi(args[arg_index]));
+  }
+}
+
 void gen_x64_instruction(const instruction_vec &i_vec,
                          std::map<std::string, size_t> &variables_indexes,
                          std::map<size_t, asmjit::Label> &label_per_instruction,
@@ -296,18 +320,17 @@ void gen_x64_instruction(const instruction_vec &i_vec,
     function_vec.insert({args.front(), def});
   }
   if (instr->type == op_call) {
-    auto arg = static_cast<unary_instruction *>(instr.get())->arg_1;
-    auto label_it = function_labels.find(arg);
+    auto args = static_cast<call_instruction *>(instr.get())->args;
+    auto fun_name = args.front();
+    auto label_it = function_labels.find(fun_name);
     if (label_it == function_labels.end()) {
-      std::string message = "function " + arg + " does not exits";
-      auto builtin_functions_it = builtin_functions.find(arg);
+      std::string message = "function " + fun_name + " does not exits";
+      auto builtin_functions_it = builtin_functions.find(fun_name);
       if (builtin_functions_it == builtin_functions.end()) {
         throw code_generation_error(message.c_str());
       } else {
-        // TODO this is just placeholder for two parameters
-        a.mov(x86::rdi, 2);
-        a.mov(x86::rsi, 3);
-        a.call(asmjit::imm(builtin_functions_it->second));
+        push_arguments(a, builtin_functions_it->second, args);
+        a.call(asmjit::imm(builtin_functions_it->second.function_pointer));
       }
     } else {
       a.call(label_it->second);

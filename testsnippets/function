@@ -13,6 +13,6 @@ function foo()
 ret
 
 var z int32
-call foo
-call start
-call print
+call foo()
+call start(1)
+call print(2 3)
