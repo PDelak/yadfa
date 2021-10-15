@@ -109,8 +109,28 @@ void push_arguments(asmjit::x86::Assembler &a,
                     const builtin_function &builtin_fun,
                     const std::vector<std::string> &args) {
   using namespace asmjit;
-  for (int arg_index = 1; arg_index != args.size(); ++arg_index) {
-    a.mov(get_register_by_index(arg_index), std::stoi(args[arg_index]));
+  constexpr auto max_number_args_via_register = 6;
+  auto args_number = args.size() - 1; // first arg is always function name
+  int args_on_stack = args_number - max_number_args_via_register;
+  if (args_number <= max_number_args_via_register) {
+    for (int arg_index = 1; arg_index != args.size(); ++arg_index) {
+      a.mov(get_register_by_index(arg_index), std::stoi(args[arg_index]));
+    }
+  } else {
+    if (args_on_stack > 0) {
+      for (int arg_index = 1; arg_index != max_number_args_via_register + 1;
+           ++arg_index) {
+        a.mov(get_register_by_index(arg_index), std::stoi(args[arg_index]));
+      }
+      // arguments are passed in reverse order from last to first one
+      // and first will have index 7
+      // as first 6 arguments are passed via registers
+      for (int arg_on_stack_index = args_on_stack; arg_on_stack_index != 0;
+           --arg_on_stack_index) {
+        a.push(
+            std::stoi(args[max_number_args_via_register + arg_on_stack_index]));
+      }
+    }
   }
 }
 
@@ -345,6 +365,17 @@ void gen_x64_instruction(const instruction_vec &i_vec,
       } else {
         push_arguments(a, builtin_functions_it->second, args);
         a.call(asmjit::imm(builtin_functions_it->second.function_pointer));
+        constexpr size_t number_of_args_passed_via_regs = 6;
+        constexpr size_t bytes_64 = 8;
+        constexpr size_t fun_name_arg = 1;
+        // first argument is always function name
+        // number of arguments has to be calculaled by
+        // subtract it and number passed via regs (6) from all arguments
+        // and multiply by size of each argument on stack which 8 bytes
+        int deallocateArgMem =
+            (args.size() - fun_name_arg - number_of_args_passed_via_regs) *
+            bytes_64;
+        a.add(x86::rsp, deallocateArgMem);
       }
     } else {
       a.call(label_it->second);
