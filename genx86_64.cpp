@@ -142,7 +142,7 @@ void gen_x64_instruction(const instruction_vec &i_vec,
                          asmjit::x86::Assembler &a, const label_table &ltable,
                          int index,
                          const builtin_functions_map &builtin_functions) {
-  constexpr size_t variable_size = 4;
+  constexpr size_t variable_size = 8;
   using namespace asmjit;
   const auto &instr = i_vec[index];
   a.bind(label_per_instruction[index]);
