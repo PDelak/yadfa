@@ -179,13 +179,19 @@ void gen_x64_instruction(const instruction_vec &i_vec,
     auto var_value = static_cast<binary_instruction *>(instr.get())->arg_2;
     auto var_index = variables_indexes[var_name];
     auto var_offset = var_index * (-variable_size);
-    // TODO check if that's number literal
-    // below two lines can be replaced by last one
-    // it's implemented for now this way for debugging purposes
-    // just to leave most recent value in rax register
-    a.mov(x86::eax, std::stoi(var_value));
-    a.mov(x86::dword_ptr(x86::rbp, var_offset), x86::eax);
-    // a.mov(x86::dword_ptr(x86::rbp, var_offset), std::stoi(var_value));
+    if (!isdigit(var_value[0])) {
+      auto rhs_index = variables_indexes[var_value];
+      auto rhs_offset = rhs_index * (-variable_size);
+      a.mov(x86::eax, x86::dword_ptr(x86::rbp, rhs_offset));
+      a.mov(x86::dword_ptr(x86::rbp, var_offset), x86::eax);
+    } else {
+      // below two lines can be replaced by last one
+      // it's implemented for now this way for debugging purposes
+      // just to leave most recent value in rax register
+      a.mov(x86::eax, std::stoi(var_value));
+      a.mov(x86::dword_ptr(x86::rbp, var_offset), x86::eax);
+      // a.mov(x86::dword_ptr(x86::rbp, var_offset), std::stoi(var_value));
+    }
   }
   if (instr->type == op_add) {
     auto arg_1 = static_cast<three_addr_instruction *>(instr.get())->arg_1;

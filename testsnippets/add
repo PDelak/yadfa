@@ -1,6 +1,12 @@
 var a int32
 var b int32
 var c int32
+var e int32
+var f int32
+var g int32
 mov a 4
 mov b 5
 add c a b
+mov e 3
+mov f e
+add g e f
