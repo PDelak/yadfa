@@ -406,14 +406,20 @@ void gen_x64_instruction(const instruction_vec &i_vec,
       if (builtin_functions_it == builtin_functions.end()) {
         throw code_generation_error(message.c_str());
       } else {
+        // TODO only rvalue arguments for now
         push_arguments_for_builtin_fun(a, builtin_functions_it->second, args);
         a.call(asmjit::imm(builtin_functions_it->second.function_pointer));
-        a.add(x86::rsp, deallocateArgMem);
+        if (args.size() > number_of_args_passed_via_regs + fun_name_arg) {
+          a.add(x86::rsp, deallocateArgMem);
+        }
       }
     } else {
+      // TODO only rvalue arguments for now
       push_arguments_for_def_fun(a, args);
       a.call(label_it->second);
-      a.add(x86::rsp, deallocateArgMem);
+      if (args.size() > number_of_args_passed_via_regs + fun_name_arg) {
+        a.add(x86::rsp, deallocateArgMem);
+      }
     }
   }
   // op_ret is no-op for now

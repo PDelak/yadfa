@@ -16,6 +16,8 @@ void usage() {
 #define YADFA_ENABLE_TESTS 1
 
 extern "C" {
+void builtin_writeln(int32_t a) { printf("\n%d\n", a); }
+
 void builtin_print(int32_t a, int32_t b, int32_t c, int32_t d, int32_t e,
                    int32_t f, int32_t g, int32_t h) {
   printf("\nprint:%d, %d, %d, %d, %d, %d, %d, %d\n", a, b, c, d, e, f, g, h);
@@ -23,6 +25,14 @@ void builtin_print(int32_t a, int32_t b, int32_t c, int32_t d, int32_t e,
 }
 
 int main(int argc, char* argv[]) {
+  builtin_functions_map builtin_functions;
+  builtin_function builtin_print_def{(void *)builtin_print,
+                                     {type_int32, type_int32, type_int32,
+                                      type_int32, type_int32, type_int32,
+                                      type_int32, type_int32}};
+  builtin_function builtin_writeln_def{(void *)builtin_writeln, {type_int32}};
+  builtin_functions.insert({"print", builtin_print_def});
+  builtin_functions.insert({"writeln", builtin_writeln_def});
   if (argc < 2) {
     usage();
     return -1;
@@ -95,21 +105,9 @@ int main(int argc, char* argv[]) {
     auto optimized_program = optimize(program, variable_intervals);
     dump_program(optimized_program, std::cout);
   } else if (command == "--exec") {
-    builtin_functions_map builtin_functions;
     auto program = parse(argv[2], table);
-    builtin_function builtin_print_def{(void *)builtin_print,
-                                       {type_int32, type_int32, type_int32,
-                                        type_int32, type_int32, type_int32,
-                                        type_int32, type_int32}};
-    builtin_functions.insert({"print", builtin_print_def});
     exec(program, table, builtin_functions);
   } else if (command == "--dump-x86") {
-    builtin_functions_map builtin_functions;
-    builtin_function builtin_print_def{(void *)builtin_print,
-                                       {type_int32, type_int32, type_int32,
-                                        type_int32, type_int32, type_int32,
-                                        type_int32, type_int32}};
-    builtin_functions.insert({"print", builtin_print_def});
     auto program = parse(argv[2], table);
     dump_x86_64(program, table, builtin_functions);
   } else {
