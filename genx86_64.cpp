@@ -114,21 +114,34 @@ void push_arguments_for_builtin_fun(asmjit::x86::Assembler &a,
   int args_on_stack = args_number - max_number_args_via_register;
   if (args_number <= max_number_args_via_register) {
     for (int arg_index = 1; arg_index != args.size(); ++arg_index) {
-      a.mov(get_register_by_index(arg_index), std::stoi(args[arg_index]));
+      if (!isdigit(args[arg_index].front())) {
+
+      } else {
+        a.mov(get_register_by_index(arg_index), std::stoi(args[arg_index]));
+      }
     }
   } else {
     if (args_on_stack > 0) {
       for (int arg_index = 1; arg_index != max_number_args_via_register + 1;
            ++arg_index) {
-        a.mov(get_register_by_index(arg_index), std::stoi(args[arg_index]));
+        if (!isdigit(args[arg_index].front())) {
+
+        } else {
+          a.mov(get_register_by_index(arg_index), std::stoi(args[arg_index]));
+        }
       }
       // arguments are passed in reverse order from last to first one
       // and first will have index 7
       // as first 6 arguments are passed via registers
       for (int arg_on_stack_index = args_on_stack; arg_on_stack_index != 0;
            --arg_on_stack_index) {
-        a.push(
-            std::stoi(args[max_number_args_via_register + arg_on_stack_index]));
+        if (!isdigit(args[max_number_args_via_register + arg_on_stack_index]
+                         .front())) {
+
+        } else {
+          a.push(std::stoi(
+              args[max_number_args_via_register + arg_on_stack_index]));
+        }
       }
     }
   }
@@ -142,21 +155,33 @@ void push_arguments_for_def_fun(asmjit::x86::Assembler &a,
   int args_on_stack = args_number - max_number_args_via_register;
   if (args_number <= max_number_args_via_register) {
     for (int arg_index = 1; arg_index != args.size(); ++arg_index) {
-      a.mov(get_register_by_index(arg_index), std::stoi(args[arg_index]));
+      if (!isdigit(args[arg_index].front())) {
+      } else {
+        a.mov(get_register_by_index(arg_index), std::stoi(args[arg_index]));
+      }
     }
   } else {
     if (args_on_stack > 0) {
       for (int arg_index = 1; arg_index != max_number_args_via_register + 1;
            ++arg_index) {
-        a.mov(get_register_by_index(arg_index), std::stoi(args[arg_index]));
+        if (!isdigit(args[arg_index].front())) {
+
+        } else {
+          a.mov(get_register_by_index(arg_index), std::stoi(args[arg_index]));
+        }
       }
       // arguments are passed in reverse order from last to first one
       // and first will have index 7
       // as first 6 arguments are passed via registers
       for (int arg_on_stack_index = args_on_stack; arg_on_stack_index != 0;
            --arg_on_stack_index) {
-        a.push(
-            std::stoi(args[max_number_args_via_register + arg_on_stack_index]));
+        if (!isdigit(args[max_number_args_via_register + arg_on_stack_index]
+                         .front())) {
+
+        } else {
+          a.push(std::stoi(
+              args[max_number_args_via_register + arg_on_stack_index]));
+        }
       }
     }
   }
