@@ -174,6 +174,8 @@ void gen_x64_instruction(const instruction_vec &i_vec,
   using namespace asmjit;
   const auto &instr = i_vec[index];
   a.bind(label_per_instruction[index]);
+  // for now mov handles lvalues as well as rvalues
+  // other instructions always use lvalues
   if (instr->type == op_mov) {
     auto var_name = static_cast<binary_instruction *>(instr.get())->arg_1;
     auto var_value = static_cast<binary_instruction *>(instr.get())->arg_2;
@@ -354,9 +356,6 @@ void gen_x64_instruction(const instruction_vec &i_vec,
     int next_instruction_index = 0;
     if (isdigit(offset[0])) {
       auto jmp_offset = std::stoi(offset);
-      if (jmp_offset > 0) {
-        jmp_offset += 1;
-      }
       next_instruction_index = index + jmp_offset;
     } else {
       auto label_it = ltable.instance.find(offset);
