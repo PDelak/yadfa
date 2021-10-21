@@ -7,7 +7,7 @@ struct code_generation_error : public std::runtime_error {
 struct function_definition
 {
   std::string name;
-  function_instruction statements;
+  function_instruction function;
 };
 
 using function_instruction_vec = std::map<std::string, function_definition>;
@@ -105,9 +105,37 @@ asmjit::x86::Gp get_register_by_index(int index) {
   return reg;
 }
 
-void push_arguments(asmjit::x86::Assembler &a,
-                    const builtin_function &builtin_fun,
-                    const std::vector<std::string> &args) {
+void push_arguments_for_builtin_fun(asmjit::x86::Assembler &a,
+                                    const builtin_function &builtin_fun,
+                                    const std::vector<std::string> &args) {
+  using namespace asmjit;
+  constexpr auto max_number_args_via_register = 6;
+  auto args_number = args.size() - 1; // first arg is always function name
+  int args_on_stack = args_number - max_number_args_via_register;
+  if (args_number <= max_number_args_via_register) {
+    for (int arg_index = 1; arg_index != args.size(); ++arg_index) {
+      a.mov(get_register_by_index(arg_index), std::stoi(args[arg_index]));
+    }
+  } else {
+    if (args_on_stack > 0) {
+      for (int arg_index = 1; arg_index != max_number_args_via_register + 1;
+           ++arg_index) {
+        a.mov(get_register_by_index(arg_index), std::stoi(args[arg_index]));
+      }
+      // arguments are passed in reverse order from last to first one
+      // and first will have index 7
+      // as first 6 arguments are passed via registers
+      for (int arg_on_stack_index = args_on_stack; arg_on_stack_index != 0;
+           --arg_on_stack_index) {
+        a.push(
+            std::stoi(args[max_number_args_via_register + arg_on_stack_index]));
+      }
+    }
+  }
+}
+
+void push_arguments_for_def_fun(asmjit::x86::Assembler &a,
+                                const std::vector<std::string> &args) {
   using namespace asmjit;
   constexpr auto max_number_args_via_register = 6;
   auto args_number = args.size() - 1; // first arg is always function name
@@ -355,6 +383,16 @@ void gen_x64_instruction(const instruction_vec &i_vec,
   }
   if (instr->type == op_call) {
     auto args = static_cast<call_instruction *>(instr.get())->args;
+    constexpr size_t number_of_args_passed_via_regs = 6;
+    constexpr size_t bytes_64 = 8;
+    constexpr size_t fun_name_arg = 1;
+    // first argument is always function name
+    // number of arguments has to be calculaled by
+    // subtract it and number passed via regs (6) from all arguments
+    // and multiply by size of each argument on stack which 8 bytes
+    int deallocateArgMem =
+        (args.size() - fun_name_arg - number_of_args_passed_via_regs) *
+        bytes_64;
     auto fun_name = args.front();
     auto label_it = function_labels.find(fun_name);
     if (label_it == function_labels.end()) {
@@ -363,22 +401,14 @@ void gen_x64_instruction(const instruction_vec &i_vec,
       if (builtin_functions_it == builtin_functions.end()) {
         throw code_generation_error(message.c_str());
       } else {
-        push_arguments(a, builtin_functions_it->second, args);
+        push_arguments_for_builtin_fun(a, builtin_functions_it->second, args);
         a.call(asmjit::imm(builtin_functions_it->second.function_pointer));
-        constexpr size_t number_of_args_passed_via_regs = 6;
-        constexpr size_t bytes_64 = 8;
-        constexpr size_t fun_name_arg = 1;
-        // first argument is always function name
-        // number of arguments has to be calculaled by
-        // subtract it and number passed via regs (6) from all arguments
-        // and multiply by size of each argument on stack which 8 bytes
-        int deallocateArgMem =
-            (args.size() - fun_name_arg - number_of_args_passed_via_regs) *
-            bytes_64;
         a.add(x86::rsp, deallocateArgMem);
       }
     } else {
+      push_arguments_for_def_fun(a, args);
       a.call(label_it->second);
+      a.add(x86::rsp, deallocateArgMem);
     }
   }
   // op_ret is no-op for now
@@ -415,13 +445,28 @@ void gen_x64(const instruction_vec &i_vec, const asmjit::JitRuntime &rt,
                         builtin_functions);
   }
 
+  // allocate function arguments
+  for (auto &fun : function_vec) {
+    auto &function_def = fun.second;
+    auto &function_body = function_def.function.body;
+    const auto &function_args = function_def.function.args;
+    if (!function_args.empty()) {
+      for (size_t arg_index = 1; arg_index != function_args.size();
+           arg_index = arg_index + 2) {
+        function_body.insert(function_body.begin(),
+                             std::make_unique<binary_instruction>(
+                                 op_var, function_args[arg_index],
+                                 function_args[arg_index + 1]));
+      }
+    }
+  }
   // traverse internal function cache and generate code
   // generate code for functions
   for (const auto &fun : function_vec) {
     auto function_name = fun.first;
     const auto& function_def = fun.second;
-    const auto &function_body = function_def.statements.body;
-    const auto &instr = function_body.front();
+    const auto &function_body = function_def.function.body;
+    const auto &function_args = function_def.function.args;
     auto function_label = a.newLabel();
     function_labels[function_name] = function_label;
 

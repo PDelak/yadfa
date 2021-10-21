@@ -1,4 +1,4 @@
-function start(a int32)
+function start(arg1 int32)
   var a int32
   mov a 1
   jmp end
@@ -14,5 +14,5 @@ ret
 
 var z int32
 call foo()
-call start(1)
+call start(9)
 call print(1 2 3 4 5 6 7 8)
