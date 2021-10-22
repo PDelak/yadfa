@@ -7,6 +7,8 @@ var g int32
 mov a 4
 mov b 5
 add c a b
+call writeln(c)
 mov e 3
 mov f e
 add g e f
+call writeln(g)

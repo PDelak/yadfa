@@ -4,22 +4,30 @@ var c i32
 mov a 4
 mov b 4
 cmp_eq c a b
+call writeln(c)
 mov a 5
 mov b 4
 cmp_eq c a b
+call writeln(c)
 cmp_neq c a b
+call writeln(c)
 mov a 5
 mov b 5
 cmp_neq c a b
+call writeln(c)
 mov a 6
 mov b 5
 cmp_gt c a b
+call writeln(c)
 mov a 5 
 mov b 6
 cmp_gt c a b
+call writeln(c)
 mov a 5
 mov b 5
 cmp_gte c a b 
+call writeln(c)
 mov a 5
 mov b 6
 cmp_lte c a b 
+call writeln(c)

@@ -4,3 +4,4 @@ var c int32
 mov a 20
 mov b 5
 div c a b
+call writeln(c)

@@ -4,7 +4,9 @@ var c int32
 mov c 1
 mov a 5
 if c 2
+call writeln(a)
 mov a 7
 label end:
+call writeln(a)
 nop
 

@@ -2,6 +2,8 @@ var a int32
 mov a 5
 jmp end
 mov a 7
+call writeln(a)
 label end:
+call writeln(a)
 nop
 
