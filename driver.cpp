@@ -16,7 +16,7 @@ void usage() {
 #define YADFA_ENABLE_TESTS 1
 
 extern "C" {
-void builtin_writeln(int32_t a) { printf("\n%d", a); }
+void builtin_writeln(int32_t a) { printf("%d\n", a); }
 void builtin_write(int32_t a) { printf("%d", a); }
 
 void builtin_print(int32_t a, int32_t b, int32_t c, int32_t d, int32_t e,

@@ -105,17 +105,24 @@ asmjit::x86::Gp get_register_by_index(int index) {
   return reg;
 }
 
-void push_arguments_for_builtin_fun(asmjit::x86::Assembler &a,
-                                    const builtin_function &builtin_fun,
-                                    const std::vector<std::string> &args) {
+void push_arguments_for_builtin_fun(
+    asmjit::x86::Assembler &a,
+    const std::map<std::string, size_t> &variables_indexes,
+    const builtin_function &builtin_fun, const std::vector<std::string> &args) {
   using namespace asmjit;
   constexpr auto max_number_args_via_register = 6;
+  constexpr size_t variable_size = 8;
   auto args_number = args.size() - 1; // first arg is always function name
   int args_on_stack = args_number - max_number_args_via_register;
   if (args_number <= max_number_args_via_register) {
     for (int arg_index = 1; arg_index != args.size(); ++arg_index) {
       if (!isdigit(args[arg_index].front())) {
-
+        auto var_index_it = variables_indexes.find(args[arg_index]);
+        if (var_index_it != variables_indexes.end()) {
+          auto var_offset = var_index_it->second * (-variable_size);
+          a.mov(get_register_by_index(arg_index),
+                x86::dword_ptr(x86::rbp, var_offset));
+        }
       } else {
         a.mov(get_register_by_index(arg_index), std::stoi(args[arg_index]));
       }
@@ -147,15 +154,24 @@ void push_arguments_for_builtin_fun(asmjit::x86::Assembler &a,
   }
 }
 
-void push_arguments_for_def_fun(asmjit::x86::Assembler &a,
-                                const std::vector<std::string> &args) {
+void push_arguments_for_def_fun(
+    asmjit::x86::Assembler &a,
+    const std::map<std::string, size_t> &variables_indexes,
+    const std::vector<std::string> &args) {
   using namespace asmjit;
   constexpr auto max_number_args_via_register = 6;
+  constexpr size_t variable_size = 8;
   auto args_number = args.size() - 1; // first arg is always function name
   int args_on_stack = args_number - max_number_args_via_register;
   if (args_number <= max_number_args_via_register) {
     for (int arg_index = 1; arg_index != args.size(); ++arg_index) {
       if (!isdigit(args[arg_index].front())) {
+        auto var_index_it = variables_indexes.find(args[arg_index]);
+        if (var_index_it != variables_indexes.end()) {
+          auto var_offset = var_index_it->second * (-variable_size);
+          a.mov(get_register_by_index(arg_index),
+                x86::dword_ptr(x86::rbp, var_offset));
+        }
       } else {
         a.mov(get_register_by_index(arg_index), std::stoi(args[arg_index]));
       }
@@ -209,14 +225,14 @@ void gen_x64_instruction(const instruction_vec &i_vec,
     if (!isdigit(var_value[0])) {
       auto rhs_index = variables_indexes[var_value];
       auto rhs_offset = rhs_index * (-variable_size);
-      a.mov(x86::eax, x86::dword_ptr(x86::rbp, rhs_offset));
-      a.mov(x86::dword_ptr(x86::rbp, var_offset), x86::eax);
+      a.mov(x86::rax, x86::dword_ptr(x86::rbp, rhs_offset));
+      a.mov(x86::dword_ptr(x86::rbp, var_offset), x86::rax);
     } else {
       // below two lines can be replaced by last one
       // it's implemented for now this way for debugging purposes
       // just to leave most recent value in rax register
-      a.mov(x86::eax, std::stoi(var_value));
-      a.mov(x86::dword_ptr(x86::rbp, var_offset), x86::eax);
+      a.mov(x86::rax, std::stoi(var_value));
+      a.mov(x86::dword_ptr(x86::rbp, var_offset), x86::rax);
       // a.mov(x86::dword_ptr(x86::rbp, var_offset), std::stoi(var_value));
     }
   }
@@ -432,7 +448,8 @@ void gen_x64_instruction(const instruction_vec &i_vec,
         throw code_generation_error(message.c_str());
       } else {
         // TODO only rvalue arguments for now
-        push_arguments_for_builtin_fun(a, builtin_functions_it->second, args);
+        push_arguments_for_builtin_fun(a, variables_indexes,
+                                       builtin_functions_it->second, args);
         a.call(asmjit::imm(builtin_functions_it->second.function_pointer));
         if (args.size() > number_of_args_passed_via_regs + fun_name_arg) {
           a.add(x86::rsp, deallocateArgMem);
@@ -440,7 +457,7 @@ void gen_x64_instruction(const instruction_vec &i_vec,
       }
     } else {
       // TODO only rvalue arguments for now
-      push_arguments_for_def_fun(a, args);
+      push_arguments_for_def_fun(a, variables_indexes, args);
       a.call(label_it->second);
       if (args.size() > number_of_args_passed_via_regs + fun_name_arg) {
         a.add(x86::rsp, deallocateArgMem);
@@ -556,7 +573,8 @@ int exec(const instruction_vec &i_vec, const label_table &ltable,
     return -1;
 
   int result = fn();
-  printf("%d\n", result);
+  // no longer needed
+  (void)result;
   return 0;
 }
 
