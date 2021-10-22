@@ -53,7 +53,8 @@ enum instruction_type {
   op_cmp_gte, // >=
   op_label,
   op_function,
-  op_nop
+  op_nop,
+  op_pop_args
 };
 
 class file_not_found_exception : public std::runtime_error {
@@ -141,6 +142,9 @@ struct instruction {
         break;
       case op_nop:
         out << std::string("nop");
+        break;
+      case op_pop_args:
+        out << std::string("pop_args");
         break;
       default:
         break;
@@ -242,6 +246,45 @@ struct call_instruction : public instruction {
   bool is_arg_equal(const std::string &value) const {
     for (const auto &a : args) {
       if (a == value)
+        return true;
+    }
+    return false;
+  }
+};
+
+struct pop_args_instruction : public instruction {
+  pop_args_instruction(
+      instruction_type t,
+      const std::vector<std::pair<std::string, std::string>> &a)
+      : instruction(t), args(a) {}
+  std::vector<std::pair<std::string, std::string>> args;
+  std::ostream &dump(std::ostream &out) {
+    int arg_number = 0;
+    dump_type(out) << ' ';
+    for (const auto a : args) {
+      // arguments start from second
+      if (arg_number == 0) {
+        out << " (";
+      }
+      if (arg_number > 0) {
+        out << ' , ';
+      }
+
+      out << a.first << " : " << a.second;
+      ++arg_number;
+    }
+    // there args[0] is function name
+    if (args.size() == 0) {
+      out << '(';
+    }
+
+    out << ')';
+    return out;
+  }
+  instruction *clone() { return new pop_args_instruction(*this); }
+  bool is_arg_equal(const std::string &value) const {
+    for (const auto &a : args) {
+      if (a.first == value)
         return true;
     }
     return false;

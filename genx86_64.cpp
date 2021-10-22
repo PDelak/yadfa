@@ -225,15 +225,10 @@ void gen_x64_instruction(const instruction_vec &i_vec,
     if (!isdigit(var_value[0])) {
       auto rhs_index = variables_indexes[var_value];
       auto rhs_offset = rhs_index * (-variable_size);
-      a.mov(x86::rax, x86::dword_ptr(x86::rbp, rhs_offset));
-      a.mov(x86::dword_ptr(x86::rbp, var_offset), x86::rax);
+      a.mov(x86::rax, x86::qword_ptr(x86::rbp, rhs_offset));
+      a.mov(x86::qword_ptr(x86::rbp, var_offset), x86::rax);
     } else {
-      // below two lines can be replaced by last one
-      // it's implemented for now this way for debugging purposes
-      // just to leave most recent value in rax register
-      a.mov(x86::rax, std::stoi(var_value));
-      a.mov(x86::dword_ptr(x86::rbp, var_offset), x86::rax);
-      // a.mov(x86::dword_ptr(x86::rbp, var_offset), std::stoi(var_value));
+      a.mov(x86::dword_ptr(x86::rbp, var_offset), std::stoi(var_value));
     }
   }
   if (instr->type == op_add) {
@@ -467,6 +462,13 @@ void gen_x64_instruction(const instruction_vec &i_vec,
   // op_ret is no-op for now
   if (instr->type == op_ret) {
   }
+  if (instr->type == op_pop_args) {
+    auto args = static_cast<pop_args_instruction *>(instr.get())->args;
+    // TODO for now it's taking only first argument from rdi register
+    auto var_index = variables_indexes[args.front().first];
+    auto var_offset = var_index * (-variable_size);
+    a.mov(x86::qword_ptr(x86::rbp, var_offset), x86::rdi);
+  }
 }
 
 void gen_x64(const instruction_vec &i_vec, const asmjit::JitRuntime &rt,
@@ -504,8 +506,17 @@ void gen_x64(const instruction_vec &i_vec, const asmjit::JitRuntime &rt,
     auto &function_body = function_def.function.body;
     const auto &function_args = function_def.function.args;
     if (!function_args.empty()) {
+      std::vector<std::pair<std::string, std::string>> args_vec;
       for (size_t arg_index = 1; arg_index != function_args.size();
            arg_index = arg_index + 2) {
+        args_vec.push_back(
+            {function_args[arg_index], function_args[arg_index + 1]});
+      }
+      for (size_t arg_index = 1; arg_index != function_args.size();
+           arg_index = arg_index + 2) {
+        function_body.insert(
+            function_body.begin(),
+            std::make_unique<pop_args_instruction>(op_pop_args, args_vec));
         function_body.insert(function_body.begin(),
                              std::make_unique<binary_instruction>(
                                  op_var, function_args[arg_index],

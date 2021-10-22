@@ -1,10 +1,14 @@
-function start(arg1 int32)
-  call writeln(arg1)
+function start(arg int32)
+  call writeln(arg)
   var a int32
   mov a 1
-  jmp end
-  mov a 7
-  label end:
+  call writeln(a)
+  mov a 3
+  call writeln(a)
+  var b int32
+  var c int32
+  add b a arg
+  call writeln(b)
   nop
 ret
 
