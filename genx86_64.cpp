@@ -464,10 +464,14 @@ void gen_x64_instruction(const instruction_vec &i_vec,
   }
   if (instr->type == op_pop_args) {
     auto args = static_cast<pop_args_instruction *>(instr.get())->args;
-    // TODO for now it's taking only first argument from rdi register
-    auto var_index = variables_indexes[args.front().first];
-    auto var_offset = var_index * (-variable_size);
-    a.mov(x86::qword_ptr(x86::rbp, var_offset), x86::rdi);
+    // TODO for now it's taking only first six arguments via registers
+    for (size_t arg_index = 0; arg_index != args.size(); ++arg_index) {
+      assert(arg_index < 6);
+      auto var_index = variables_indexes[args[arg_index].first];
+      auto var_offset = var_index * (-variable_size);
+      a.mov(x86::qword_ptr(x86::rbp, var_offset),
+            get_register_by_index(arg_index + 1));
+    }
   }
 }
 
