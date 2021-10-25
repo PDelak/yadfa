@@ -10,6 +10,10 @@ struct function_definition
   function_instruction function;
 };
 
+struct variable_info {
+  size_t index = std::numeric_limits<size_t>::max();
+};
+
 using function_instruction_vec = std::map<std::string, function_definition>;
 
 void dump_x86_64(const asmjit::CodeHolder &code) {
@@ -21,9 +25,9 @@ void dump_x86_64(const asmjit::CodeHolder &code) {
   std::cout << '\n';
 }
 
-std::map<std::string, size_t>
+std::map<std::string, variable_info>
 populate_variable_indexes(const instruction_vec &i_vec) {
-  std::map<std::string, size_t> variables_indexes;
+  std::map<std::string, variable_info> variables_indexes;
   size_t num_variables = 0;
   for (size_t i_index = 0; i_index != i_vec.size(); ++i_index) {
     const auto &instr = i_vec[i_index];
@@ -34,7 +38,7 @@ populate_variable_indexes(const instruction_vec &i_vec) {
       auto var_type =
           static_cast<binary_instruction *>(i_vec[i_index].get())->arg_2;
 
-      variables_indexes[var_name] = num_variables;
+      variables_indexes[var_name] = variable_info{num_variables};
     }
   }
   return variables_indexes;
@@ -51,8 +55,9 @@ void gen_epilog(asmjit::x86::Assembler &a) {
   a.pop(x86::rbp);
 }
 
-size_t gen_allocation(const std::map<std::string, size_t> &variables_indexes,
-                      asmjit::x86::Assembler &a) {
+size_t
+gen_allocation(const std::map<std::string, variable_info> &variables_indexes,
+               asmjit::x86::Assembler &a) {
   using namespace asmjit;
   // TODO hardcoded for now, only 32 bit values
   constexpr size_t variable_size = 4;
@@ -107,7 +112,7 @@ asmjit::x86::Gp get_register_by_index(int index) {
 
 void push_arguments_for_builtin_fun(
     asmjit::x86::Assembler &a,
-    const std::map<std::string, size_t> &variables_indexes,
+    const std::map<std::string, variable_info> &variables_info,
     const builtin_function &builtin_fun, const std::vector<std::string> &args) {
   using namespace asmjit;
   constexpr auto max_number_args_via_register = 6;
@@ -117,9 +122,9 @@ void push_arguments_for_builtin_fun(
   if (args_number <= max_number_args_via_register) {
     for (int arg_index = 1; arg_index != args.size(); ++arg_index) {
       if (!isdigit(args[arg_index].front())) {
-        auto var_index_it = variables_indexes.find(args[arg_index]);
-        if (var_index_it != variables_indexes.end()) {
-          auto var_offset = var_index_it->second * (-variable_size);
+        auto var_info_it = variables_info.find(args[arg_index]);
+        if (var_info_it != variables_info.end()) {
+          auto var_offset = var_info_it->second.index * (-variable_size);
           a.mov(get_register_by_index(arg_index),
                 x86::dword_ptr(x86::rbp, var_offset));
         }
@@ -156,7 +161,7 @@ void push_arguments_for_builtin_fun(
 
 void push_arguments_for_def_fun(
     asmjit::x86::Assembler &a,
-    const std::map<std::string, size_t> &variables_indexes,
+    const std::map<std::string, variable_info> &variables_info,
     const std::vector<std::string> &args) {
   using namespace asmjit;
   constexpr auto max_number_args_via_register = 6;
@@ -166,9 +171,9 @@ void push_arguments_for_def_fun(
   if (args_number <= max_number_args_via_register) {
     for (int arg_index = 1; arg_index != args.size(); ++arg_index) {
       if (!isdigit(args[arg_index].front())) {
-        auto var_index_it = variables_indexes.find(args[arg_index]);
-        if (var_index_it != variables_indexes.end()) {
-          auto var_offset = var_index_it->second * (-variable_size);
+        auto var_info_it = variables_info.find(args[arg_index]);
+        if (var_info_it != variables_info.end()) {
+          auto var_offset = var_info_it->second.index * (-variable_size);
           a.mov(get_register_by_index(arg_index),
                 x86::dword_ptr(x86::rbp, var_offset));
         }
@@ -204,7 +209,7 @@ void push_arguments_for_def_fun(
 }
 
 void gen_x64_instruction(const instruction_vec &i_vec,
-                         std::map<std::string, size_t> &variables_indexes,
+                         std::map<std::string, variable_info> &variables_info,
                          std::map<size_t, asmjit::Label> &label_per_instruction,
                          std::map<std::string, asmjit::Label> &function_labels,
                          function_instruction_vec &function_vec,
@@ -220,11 +225,11 @@ void gen_x64_instruction(const instruction_vec &i_vec,
   if (instr->type == op_mov) {
     auto var_name = static_cast<binary_instruction *>(instr.get())->arg_1;
     auto var_value = static_cast<binary_instruction *>(instr.get())->arg_2;
-    auto var_index = variables_indexes[var_name];
-    auto var_offset = var_index * (-variable_size);
+    auto var_info = variables_info[var_name];
+    auto var_offset = var_info.index * (-variable_size);
     if (!isdigit(var_value[0])) {
-      auto rhs_index = variables_indexes[var_value];
-      auto rhs_offset = rhs_index * (-variable_size);
+      auto rhs_info = variables_info[var_value];
+      auto rhs_offset = rhs_info.index * (-variable_size);
       a.mov(x86::rax, x86::qword_ptr(x86::rbp, rhs_offset));
       a.mov(x86::qword_ptr(x86::rbp, var_offset), x86::rax);
     } else {
@@ -236,12 +241,12 @@ void gen_x64_instruction(const instruction_vec &i_vec,
     auto arg_2 = static_cast<three_addr_instruction *>(instr.get())->arg_2;
     auto arg_3 = static_cast<three_addr_instruction *>(instr.get())->arg_3;
     // TODO assuming args are lvalues
-    auto arg_1_index = variables_indexes[arg_1];
-    auto arg_2_index = variables_indexes[arg_2];
-    auto arg_3_index = variables_indexes[arg_3];
-    auto arg_1_offset = arg_1_index * (-variable_size);
-    auto arg_2_offset = arg_2_index * (-variable_size);
-    auto arg_3_offset = arg_3_index * (-variable_size);
+    auto arg_1_info = variables_info[arg_1];
+    auto arg_2_info = variables_info[arg_2];
+    auto arg_3_info = variables_info[arg_3];
+    auto arg_1_offset = arg_1_info.index * (-variable_size);
+    auto arg_2_offset = arg_2_info.index * (-variable_size);
+    auto arg_3_offset = arg_3_info.index * (-variable_size);
     a.mov(x86::rax, x86::dword_ptr(x86::rbp, arg_2_offset));
     a.add(x86::rax, x86::dword_ptr(x86::rbp, arg_3_offset));
     a.mov(x86::dword_ptr(x86::rbp, arg_1_offset), x86::eax);
@@ -251,12 +256,12 @@ void gen_x64_instruction(const instruction_vec &i_vec,
     auto arg_2 = static_cast<three_addr_instruction *>(instr.get())->arg_2;
     auto arg_3 = static_cast<three_addr_instruction *>(instr.get())->arg_3;
     // TODO assuming args are lvalues
-    auto arg_1_index = variables_indexes[arg_1];
-    auto arg_2_index = variables_indexes[arg_2];
-    auto arg_3_index = variables_indexes[arg_3];
-    auto arg_1_offset = arg_1_index * (-variable_size);
-    auto arg_2_offset = arg_2_index * (-variable_size);
-    auto arg_3_offset = arg_3_index * (-variable_size);
+    auto arg_1_info = variables_info[arg_1];
+    auto arg_2_info = variables_info[arg_2];
+    auto arg_3_info = variables_info[arg_3];
+    auto arg_1_offset = arg_1_info.index * (-variable_size);
+    auto arg_2_offset = arg_2_info.index * (-variable_size);
+    auto arg_3_offset = arg_3_info.index * (-variable_size);
     a.mov(x86::rax, x86::dword_ptr(x86::rbp, arg_2_offset));
     a.sub(x86::rax, x86::dword_ptr(x86::rbp, arg_3_offset));
     a.mov(x86::dword_ptr(x86::rbp, arg_1_offset), x86::eax);
@@ -266,12 +271,12 @@ void gen_x64_instruction(const instruction_vec &i_vec,
     auto arg_2 = static_cast<three_addr_instruction *>(instr.get())->arg_2;
     auto arg_3 = static_cast<three_addr_instruction *>(instr.get())->arg_3;
     // TODO assuming args are lvalues
-    auto arg_1_index = variables_indexes[arg_1];
-    auto arg_2_index = variables_indexes[arg_2];
-    auto arg_3_index = variables_indexes[arg_3];
-    auto arg_1_offset = arg_1_index * (-variable_size);
-    auto arg_2_offset = arg_2_index * (-variable_size);
-    auto arg_3_offset = arg_3_index * (-variable_size);
+    auto arg_1_info = variables_info[arg_1];
+    auto arg_2_info = variables_info[arg_2];
+    auto arg_3_info = variables_info[arg_3];
+    auto arg_1_offset = arg_1_info.index * (-variable_size);
+    auto arg_2_offset = arg_2_info.index * (-variable_size);
+    auto arg_3_offset = arg_3_info.index * (-variable_size);
     a.mov(x86::rax, x86::dword_ptr(x86::rbp, arg_2_offset));
     a.mov(x86::rcx, x86::dword_ptr(x86::rbp, arg_3_offset));
     a.mul(x86::rcx);
@@ -283,12 +288,12 @@ void gen_x64_instruction(const instruction_vec &i_vec,
     auto arg_2 = static_cast<three_addr_instruction *>(instr.get())->arg_2;
     auto arg_3 = static_cast<three_addr_instruction *>(instr.get())->arg_3;
     // TODO assuming args are lvalues
-    auto arg_1_index = variables_indexes[arg_1];
-    auto arg_2_index = variables_indexes[arg_2];
-    auto arg_3_index = variables_indexes[arg_3];
-    auto arg_1_offset = arg_1_index * (-variable_size);
-    auto arg_2_offset = arg_2_index * (-variable_size);
-    auto arg_3_offset = arg_3_index * (-variable_size);
+    auto arg_1_info = variables_info[arg_1];
+    auto arg_2_info = variables_info[arg_2];
+    auto arg_3_info = variables_info[arg_3];
+    auto arg_1_offset = arg_1_info.index * (-variable_size);
+    auto arg_2_offset = arg_2_info.index * (-variable_size);
+    auto arg_3_offset = arg_3_info.index * (-variable_size);
     a.mov(x86::rax, x86::dword_ptr(x86::rbp, arg_2_offset));
     a.cdq();
     a.idiv(x86::dword_ptr(x86::rbp, arg_3_offset));
@@ -297,15 +302,15 @@ void gen_x64_instruction(const instruction_vec &i_vec,
   if (instr->type == op_push) {
     // TODO assuming args are lvalues
     auto arg = static_cast<unary_instruction *>(instr.get())->arg_1;
-    auto arg_index = variables_indexes[arg];
-    auto arg_offset = arg_index * (-variable_size);
+    auto arg_info = variables_info[arg];
+    auto arg_offset = arg_info.index * (-variable_size);
     a.push(x86::dword_ptr(x86::rbp, arg_offset));
   }
   if (instr->type == op_pop) {
     // TODO assuming args are lvalues
     auto arg = static_cast<unary_instruction *>(instr.get())->arg_1;
-    auto arg_index = variables_indexes[arg];
-    auto arg_offset = arg_index * (-variable_size);
+    auto arg_info = variables_info[arg];
+    auto arg_offset = arg_info.index * (-variable_size);
     a.pop(x86::dword_ptr(x86::rbp, arg_offset));
   }
   if (instr->type == op_jmp) {
@@ -346,12 +351,12 @@ void gen_x64_instruction(const instruction_vec &i_vec,
     auto arg_2 = static_cast<three_addr_instruction *>(instr.get())->arg_2;
     auto arg_3 = static_cast<three_addr_instruction *>(instr.get())->arg_3;
     // TODO assuming args are lvalues
-    auto arg_1_index = variables_indexes[arg_1];
-    auto arg_2_index = variables_indexes[arg_2];
-    auto arg_3_index = variables_indexes[arg_3];
-    auto arg_1_offset = arg_1_index * (-variable_size);
-    auto arg_2_offset = arg_2_index * (-variable_size);
-    auto arg_3_offset = arg_3_index * (-variable_size);
+    auto arg_1_info = variables_info[arg_1];
+    auto arg_2_info = variables_info[arg_2];
+    auto arg_3_info = variables_info[arg_3];
+    auto arg_1_offset = arg_1_info.index * (-variable_size);
+    auto arg_2_offset = arg_2_info.index * (-variable_size);
+    auto arg_3_offset = arg_3_info.index * (-variable_size);
     a.mov(x86::eax, x86::dword_ptr(x86::rbp, arg_2_offset));
     a.cmp(x86::eax, x86::dword_ptr(x86::rbp, arg_3_offset));
     auto false_label = a.newLabel();
@@ -382,8 +387,8 @@ void gen_x64_instruction(const instruction_vec &i_vec,
   if (instr->type == op_if) {
     auto false_label = a.newLabel();
     auto arg = static_cast<binary_instruction *>(instr.get())->arg_1;
-    auto arg_index = variables_indexes[arg];
-    auto arg_offset = arg_index * (-variable_size);
+    auto arg_info = variables_info[arg];
+    auto arg_offset = arg_info.index * (-variable_size);
     auto offset = static_cast<binary_instruction *>(instr.get())->arg_2;
     a.mov(x86::ebx, x86::dword_ptr(x86::rbp, arg_offset));
     a.cmp(x86::ebx, 0);
@@ -443,7 +448,7 @@ void gen_x64_instruction(const instruction_vec &i_vec,
         throw code_generation_error(message.c_str());
       } else {
         // TODO only rvalue arguments for now
-        push_arguments_for_builtin_fun(a, variables_indexes,
+        push_arguments_for_builtin_fun(a, variables_info,
                                        builtin_functions_it->second, args);
         a.call(asmjit::imm(builtin_functions_it->second.function_pointer));
         if (args.size() > number_of_args_passed_via_regs + fun_name_arg) {
@@ -452,7 +457,7 @@ void gen_x64_instruction(const instruction_vec &i_vec,
       }
     } else {
       // TODO only rvalue arguments for now
-      push_arguments_for_def_fun(a, variables_indexes, args);
+      push_arguments_for_def_fun(a, variables_info, args);
       a.call(label_it->second);
       if (args.size() > number_of_args_passed_via_regs + fun_name_arg) {
         a.add(x86::rsp, deallocateArgMem);
@@ -467,8 +472,8 @@ void gen_x64_instruction(const instruction_vec &i_vec,
     // TODO for now it's taking only first six arguments via registers
     for (size_t arg_index = 0; arg_index != args.size(); ++arg_index) {
       assert(arg_index < 6);
-      auto var_index = variables_indexes[args[arg_index].first];
-      auto var_offset = var_index * (-variable_size);
+      auto var_info = variables_info[args[arg_index].first];
+      auto var_offset = var_info.index * (-variable_size);
       a.mov(x86::qword_ptr(x86::rbp, var_offset),
             get_register_by_index(arg_index + 1));
     }

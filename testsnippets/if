@@ -3,7 +3,7 @@ var b int32
 var c int32
 mov c 1
 mov a 5
-if c 2
+if c end
 call writeln(a)
 mov a 7
 label end:
