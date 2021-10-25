@@ -12,6 +12,7 @@ struct function_definition
 
 struct variable_info {
   size_t index = std::numeric_limits<size_t>::max();
+  std::string type;
 };
 
 using function_instruction_vec = std::map<std::string, function_definition>;
@@ -38,7 +39,7 @@ populate_variable_indexes(const instruction_vec &i_vec) {
       auto var_type =
           static_cast<binary_instruction *>(i_vec[i_index].get())->arg_2;
 
-      variables_indexes[var_name] = variable_info{num_variables};
+      variables_indexes[var_name] = variable_info{num_variables, var_type};
     }
   }
   return variables_indexes;
