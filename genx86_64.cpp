@@ -61,7 +61,7 @@ gen_allocation(const std::map<std::string, variable_info> &variables_indexes,
                asmjit::x86::Assembler &a) {
   using namespace asmjit;
   // TODO hardcoded for now, only 32 bit values
-  constexpr size_t variable_size = 4;
+  constexpr size_t variable_size = 8;
   const size_t allocated_mem = variables_indexes.size() * variable_size;
   a.sub(x86::rsp, allocated_mem);
   return allocated_mem;
@@ -217,7 +217,6 @@ void gen_x64_instruction(const instruction_vec &i_vec,
                          asmjit::x86::Assembler &a, const label_table &ltable,
                          int index,
                          const builtin_functions_map &builtin_functions) {
-  constexpr size_t variable_size = 8;
   using namespace asmjit;
   const auto &instr = i_vec[index];
   a.bind(label_per_instruction[index]);
@@ -227,6 +226,7 @@ void gen_x64_instruction(const instruction_vec &i_vec,
     auto var_name = static_cast<binary_instruction *>(instr.get())->arg_1;
     auto var_value = static_cast<binary_instruction *>(instr.get())->arg_2;
     auto var_info = variables_info[var_name];
+    std::uint8_t variable_size = 8;
     auto var_offset = var_info.index * (-variable_size);
     if (!isdigit(var_value[0])) {
       auto rhs_info = variables_info[var_value];
@@ -242,6 +242,7 @@ void gen_x64_instruction(const instruction_vec &i_vec,
     auto arg_2 = static_cast<three_addr_instruction *>(instr.get())->arg_2;
     auto arg_3 = static_cast<three_addr_instruction *>(instr.get())->arg_3;
     // TODO assuming args are lvalues
+    std::uint8_t variable_size = 8;
     auto arg_1_info = variables_info[arg_1];
     auto arg_2_info = variables_info[arg_2];
     auto arg_3_info = variables_info[arg_3];
@@ -257,6 +258,7 @@ void gen_x64_instruction(const instruction_vec &i_vec,
     auto arg_2 = static_cast<three_addr_instruction *>(instr.get())->arg_2;
     auto arg_3 = static_cast<three_addr_instruction *>(instr.get())->arg_3;
     // TODO assuming args are lvalues
+    std::uint8_t variable_size = 8;
     auto arg_1_info = variables_info[arg_1];
     auto arg_2_info = variables_info[arg_2];
     auto arg_3_info = variables_info[arg_3];
@@ -272,6 +274,7 @@ void gen_x64_instruction(const instruction_vec &i_vec,
     auto arg_2 = static_cast<three_addr_instruction *>(instr.get())->arg_2;
     auto arg_3 = static_cast<three_addr_instruction *>(instr.get())->arg_3;
     // TODO assuming args are lvalues
+    std::uint8_t variable_size = 8;
     auto arg_1_info = variables_info[arg_1];
     auto arg_2_info = variables_info[arg_2];
     auto arg_3_info = variables_info[arg_3];
@@ -289,6 +292,7 @@ void gen_x64_instruction(const instruction_vec &i_vec,
     auto arg_2 = static_cast<three_addr_instruction *>(instr.get())->arg_2;
     auto arg_3 = static_cast<three_addr_instruction *>(instr.get())->arg_3;
     // TODO assuming args are lvalues
+    std::uint8_t variable_size = 8;
     auto arg_1_info = variables_info[arg_1];
     auto arg_2_info = variables_info[arg_2];
     auto arg_3_info = variables_info[arg_3];
@@ -302,6 +306,7 @@ void gen_x64_instruction(const instruction_vec &i_vec,
   }
   if (instr->type == op_push) {
     // TODO assuming args are lvalues
+    std::uint8_t variable_size = 8;
     auto arg = static_cast<unary_instruction *>(instr.get())->arg_1;
     auto arg_info = variables_info[arg];
     auto arg_offset = arg_info.index * (-variable_size);
@@ -309,6 +314,7 @@ void gen_x64_instruction(const instruction_vec &i_vec,
   }
   if (instr->type == op_pop) {
     // TODO assuming args are lvalues
+    std::uint8_t variable_size = 8;
     auto arg = static_cast<unary_instruction *>(instr.get())->arg_1;
     auto arg_info = variables_info[arg];
     auto arg_offset = arg_info.index * (-variable_size);
@@ -352,6 +358,7 @@ void gen_x64_instruction(const instruction_vec &i_vec,
     auto arg_2 = static_cast<three_addr_instruction *>(instr.get())->arg_2;
     auto arg_3 = static_cast<three_addr_instruction *>(instr.get())->arg_3;
     // TODO assuming args are lvalues
+    std::uint8_t variable_size = 8;
     auto arg_1_info = variables_info[arg_1];
     auto arg_2_info = variables_info[arg_2];
     auto arg_3_info = variables_info[arg_3];
@@ -389,6 +396,7 @@ void gen_x64_instruction(const instruction_vec &i_vec,
     auto false_label = a.newLabel();
     auto arg = static_cast<binary_instruction *>(instr.get())->arg_1;
     auto arg_info = variables_info[arg];
+    std::uint8_t variable_size = 8;
     auto arg_offset = arg_info.index * (-variable_size);
     auto offset = static_cast<binary_instruction *>(instr.get())->arg_2;
     a.mov(x86::ebx, x86::dword_ptr(x86::rbp, arg_offset));
@@ -474,6 +482,7 @@ void gen_x64_instruction(const instruction_vec &i_vec,
     for (size_t arg_index = 0; arg_index != args.size(); ++arg_index) {
       assert(arg_index < 6);
       auto var_info = variables_info[args[arg_index].first];
+      std::uint8_t variable_size = 8;
       auto var_offset = var_info.index * (-variable_size);
       a.mov(x86::qword_ptr(x86::rbp, var_offset),
             get_register_by_index(arg_index + 1));
